@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OPTIMA — Comprehensive Heart Failure Management</title>
+<style>
+  html,body{ margin:0; padding:0; height:100%; background:#f5f7fb; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; }
+  #stage{ position:relative; width:100%; height:100vh; }
+  canvas{ position:absolute; inset:0; display:block; width:100%; height:100%; touch-action:none; cursor:pointer; }
+
+  /* ---------- persistent title (all steps) ---------- */
+  #pageTitle{
+    position:absolute; top:26px; left:50%; transform:translateX(-50%);
+    font-size:24px; font-weight:800; color:#0f1b3d; letter-spacing:-0.01em;
+    text-align:center; pointer-events:none; z-index:20; max-width:90%;
+  }
+  #hint{
+    position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
+    font-size:14px; color:#5b6474; background:rgba(255,255,255,0.75); backdrop-filter:blur(6px);
+    padding:8px 16px; border-radius:999px; pointer-events:none; transition:opacity .2s ease;
+    border:1px solid rgba(0,0,0,0.06); z-index:20; white-space:nowrap;
+  }
+
+  /* ---------- back button (focused view only) ---------- */
+  #backBtn{
+    position:absolute; top:22px; left:22px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+    padding:10px 16px; border-radius:12px;
+    background:rgba(15,27,61,0.78); color:#fff; font-size:14px; font-weight:700;
+    backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15);
+    cursor:pointer; opacity:0; pointer-events:none; transform:translateX(-10px);
+    transition:opacity .2s ease, transform .2s ease, background .18s ease;
+  }
+  #backBtn.visible{ opacity:1; pointer-events:auto; transform:translateX(0); }
+  #backBtn:hover{ background:rgba(15,27,61,0.92); }
+
+  /* ---------- feature hover tooltip (focused view only) ---------- */
+  #tooltip{
+    position:absolute; z-index:50; pointer-events:none; max-width:220px;
+    padding:10px 14px; border-radius:10px;
+    background:rgba(255,255,255,0.9); backdrop-filter:blur(14px) saturate(180%);
+    -webkit-backdrop-filter:blur(14px) saturate(180%);
+    box-shadow:0 16px 36px -12px rgba(15,27,61,0.35);
+    opacity:0; transform:translateY(4px); transition:opacity .12s ease, transform .12s ease;
+  }
+  #tooltip.visible{ opacity:1; transform:translateY(0); }
+  #tooltip .tt-title{ font-size:13px; font-weight:800; color:#0f1b3d; line-height:1.3; margin-bottom:2px; }
+  #tooltip .tt-desc{ font-size:12px; color:#5b6474; line-height:1.4; }
+  /* plays once whenever the hovered feature actually changes, so the swap
+     reads as a deliberate update rather than an easy-to-miss instant
+     text change while the cursor drifts across neighboring blocks */
+  #tooltip.pulse{ animation:tooltipChange .38s ease; }
+  @keyframes tooltipChange{
+    0%{ box-shadow:0 16px 36px -12px rgba(15,27,61,0.35); background:rgba(255,255,255,0.9); }
+    30%{ box-shadow:0 18px 44px -10px rgba(28,77,132,0.55); background:rgba(216,226,238,0.97); }
+    100%{ box-shadow:0 16px 36px -12px rgba(15,27,61,0.35); background:rgba(255,255,255,0.9); }
+  }
+
+  /* ---------- floating glassmorphic group labels ---------- */
+  @keyframes labelFloaty{
+    0%,100%{ transform:translate(-50%,-50%) translateY(0); }
+    50%{ transform:translate(-50%,-50%) translateY(-5px); }
+  }
+  .group-label{
+    position:absolute; transform:translate(-50%,-50%);
+    display:flex; align-items:center; gap:10px;
+    padding:12px 20px; border-radius:14px;
+    /* Tinted with the group's own color (set per-label via the --label-bg
+       custom properties below) — this was missing entirely before, which
+       left the label as just a blurred glass edge with no fill, nothing
+       like the solid colored pill in the reference concept. */
+    background:var(--label-bg);
+    border:1px solid rgba(255,255,255,0.5);
+    backdrop-filter:blur(14px) saturate(160%); -webkit-backdrop-filter:blur(14px) saturate(160%);
+    box-shadow:0 10px 28px -10px rgba(15,27,61,0.28), inset 0 1px 0 rgba(255,255,255,0.55);
+    font:inherit; cursor:pointer; opacity:0; pointer-events:none;
+    transition:opacity .25s ease, background .18s ease, box-shadow .18s ease;
+  }
+  .group-label.visible{ opacity:1; pointer-events:auto; animation:labelFloaty 2.8s ease-in-out infinite; }
+  .group-label:hover{
+    animation-play-state:paused; transform:translate(-50%,-58%) scale(1.05);
+    background:var(--label-bg-hover);
+    box-shadow:0 16px 36px -10px rgba(15,27,61,0.36), inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+  .group-label:active{ transform:translate(-50%,-50%) scale(0.97); }
+  .group-label .lbl-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  .group-label .lbl-txt{ font-size:16px; font-weight:800; color:#ffffff; text-shadow:0 1px 3px rgba(15,27,61,0.35); letter-spacing:-0.01em; white-space:nowrap; }
+
+  /* summary popup nested inside each label, shown on hover */
+  .group-label .lbl-popup{
+    position:absolute; bottom:calc(100% + 14px); left:50%;
+    transform:translateX(-50%) translateY(6px);
+    width:230px; padding:14px 16px; border-radius:12px; text-align:left;
+    background:rgba(255,255,255,0.94); backdrop-filter:blur(16px) saturate(180%);
+    -webkit-backdrop-filter:blur(16px) saturate(180%);
+    box-shadow:0 22px 48px -16px rgba(15,27,61,0.4);
+    opacity:0; pointer-events:none; transition:opacity .16s ease, transform .16s ease;
+    white-space:normal; cursor:default;
+  }
+  .group-label:hover .lbl-popup{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .lbl-popup h4{ margin:0 0 6px; font-size:14px; color:#0f1b3d; }
+  .lbl-popup p{ margin:0 0 10px; font-size:12.5px; color:#5b6474; line-height:1.5; }
+  .lbl-popup .lbl-stats{ display:flex; gap:8px; flex-wrap:wrap; }
+  .lbl-popup .lbl-stat{ font-size:11.5px; font-weight:700; color:#0f1b3d; background:#eef1f7; padding:4px 8px; border-radius:6px; }
+
+  /* ---------- feature detail: single floating popup (focused view only) ---------- */
+  #featurePopup{
+    position:absolute; left:50%; bottom:26px; transform:translateX(-50%) translateY(16px);
+    z-index:40; opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+  }
+  #featurePopup.visible{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0); }
+  #featurePopup.pulse .fp-card{ animation:fpCardSwap .36s ease; }
+  @keyframes fpCardSwap{
+    0%{ transform:translateY(0) scale(1); box-shadow:0 24px 55px -18px rgba(15,27,61,0.45); }
+    35%{ transform:translateY(-6px) scale(1.02); box-shadow:0 30px 70px -14px rgba(28,77,132,0.55); }
+    100%{ transform:translateY(0) scale(1); box-shadow:0 24px 55px -18px rgba(15,27,61,0.45); }
+  }
+  .fp-close{
+    position:absolute; top:-13px; right:-13px; width:26px; height:26px; border-radius:50%;
+    background:#0f1b3d; color:#fff; display:flex; align-items:center; justify-content:center;
+    font-size:13px; cursor:pointer; box-shadow:0 8px 18px -4px rgba(15,27,61,0.5); z-index:1;
+  }
+  .fp-card{
+    --accent:#1c4d84;
+    position:relative; width:336px; padding:20px 22px 18px; border-radius:10px; text-align:left;
+    background:rgba(255,255,255,0.96); backdrop-filter:blur(18px) saturate(180%);
+    -webkit-backdrop-filter:blur(18px) saturate(180%);
+    box-shadow:0 24px 55px -18px rgba(15,27,61,0.45);
+    border-top:3px solid var(--accent);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  .fp-mono{ font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace; }
+  .fp-card .fp-kicker{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid rgba(15,27,61,0.1);
+  }
+  .fp-card .fp-kicker-text{
+    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); font-weight:700;
+  }
+  .fp-card .fp-mod-id{
+    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:11px; letter-spacing:.03em; color:#9aa5b8; white-space:nowrap;
+  }
+  /* The icon "hangs" to the left of the content column via negative offset
+     so the title text starts flush at the same left edge as the paragraph
+     and tag rows below it, instead of being pushed right by the icon. */
+  .fp-title-row{ margin-bottom:10px; }
+  .fp-card h4{ margin:0; font-size:15px; color:#0f1b3d; line-height:1.35; }
+  .fp-card p{ margin:0 0 14px; font-size:12.5px; color:#5b6474; line-height:1.55; }
+  .fp-tags{ display:flex; flex-direction:column; gap:10px; margin-bottom:16px; padding-top:12px; border-top:1px solid rgba(15,27,61,0.08); }
+  .fp-tags-label{
+    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+    font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9aa5b8; margin-bottom:6px;
+  }
+  .fp-tags-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .fp-tag{
+    display:inline-flex; align-items:flex-start; gap:5px;
+    font-size:10.5px; line-height:1.3; color:#1c2942; font-weight:600;
+    background:rgba(15,27,61,0.06); border-radius:4px; padding:4px 8px 4px 6px;
+  }
+  .fp-tag svg{ width:11px; height:11px; margin-top:1px; flex:none; color:var(--accent); }
+  .fp-card .fp-cta{ font-size:12.5px; font-weight:700; color:#0f1b3d; display:flex; align-items:center; gap:5px; text-decoration:none; }
+  .fp-card .fp-cta svg{ width:24px; height:24px; flex:none; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <h1 id="pageTitle">Comprehensive Heart Failure Management</h1>
+  <div id="hint">Click the heart to explore PERSEVERE, PATHFINDER &amp; SENTINEL</div>
+  <button id="backBtn" type="button">&larr; Back to overview</button>
+  <div id="tooltip"><div class="tt-title"></div><div class="tt-desc"></div></div>
+  <div id="featurePopup"></div>
+  <div id="groupLabels"></div>
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================================
+     HEART VOXEL MODEL — same silhouette/brick-packing approach as before:
+     decomposed into 2-3 unit Lego pieces across 3 depth layers, grouped into
+     THREE horizontal thirds (PERSEVERE / PATHFINDER / SENTINEL).
+  ========================================================================= */
+
+  const HEART_BITMAP = [
+    [0,1,1,1,0,0,0,1,1,1,0],
+    [1,1,1,1,1,0,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1,1],
+    [0,1,1,1,1,1,1,1,1,1,0],
+    [0,0,1,1,1,1,1,1,1,0,0],
+    [0,0,0,1,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,1,0,0,0,0],
+    [0,0,0,0,0,1,0,0,0,0,0],
+  ];
+
+  function erode(bitmap){
+    const rows = bitmap.length, cols = bitmap[0].length;
+    return bitmap.map((row,r) => row.map((v,c) => {
+      if(!v) return 0;
+      const n = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+      const ok = n.every(([nr,nc]) => nr>=0 && nr<rows && nc>=0 && nc<cols && bitmap[nr][nc]);
+      return ok ? 1 : 0;
+    }));
+  }
+
+  const FULL = HEART_BITMAP;
+  const CORE = erode(HEART_BITMAP);
+  const LAYERS = [CORE, FULL, CORE]; // front -> back
+
+  const BRICK = 1.15;
+  const GAP = 0.11;
+  const SPACING = BRICK + GAP;
+  const STUD_R = BRICK*0.28, STUD_H = BRICK*0.22;
+
+  const rows = HEART_BITMAP.length, cols = HEART_BITMAP[0].length, numLayers = LAYERS.length;
+  const THIRD = cols/3;
+
+  // Columns whose cell straddles a group boundary (the fractional THIRD/THIRD*2
+  // cutoff falls inside them). Instead of rounding them statically to one side,
+  // alternate their assignment by row parity so the seam between groups zigzags
+  // — teeth from each side poke into the other — rather than reading as one
+  // straight, static dividing line when the heart is whole/reassembled.
+  const BOUNDARY_COL_1 = Math.floor(THIRD);
+  const BOUNDARY_COL_2 = Math.floor(THIRD*2);
+
+  function sideOf(r,c){
+    if(c === BOUNDARY_COL_1) return (r % 2 === 0) ? "persevere" : "pathfinder";
+    if(c === BOUNDARY_COL_2) return (r % 2 === 0) ? "pathfinder" : "sentinel";
+    const t = c + 0.5; // cell center
+    if(t < THIRD) return "persevere";
+    if(t < THIRD*2) return "pathfinder";
+    return "sentinel";
+  }
+
+  function chunkRun(len){
+    if(len === 1) return [1];
+    const q = Math.floor(len/3), rem = len % 3;
+    if(rem === 0) return Array(q).fill(3);
+    if(rem === 2) return Array(q).fill(3).concat([2]);
+    return Array(q).fill(3).concat([1]); // rem === 1 — a lone 1-stud piece instead of
+    // borrowing into two 2-stud pieces, so 2-length blocks stay rare (only the
+    // rem===2 case produces one), keeping the run visually varied rather than
+    // dominated by repeated 2-stud chunks.
+  }
+
+  /* =========================================================================
+     GROUP / CONTENT MODEL — PERSEVERE, PATHFINDER, SENTINEL. Colors are back
+     to the single-hue ~212° family from the original 2-part concept (the
+     "Clinical Centers" / "Insurance Companies" split) — 0x1c4d84 and
+     0x3b80ce are that concept's exact two base colors, kept verbatim, with
+     a third, deeper shade in the same family added for the third group.
+     Group identity now comes from lightness/saturation only, never hue,
+     matching that original build's rule (subsections/sides told apart by
+     shade, not color family) extended across 3 groups instead of 2.
+  ========================================================================= */
+
+  // Module + tag icons — same set already used on the circuit-concept page's
+  // module rows, reused here so both concepts share one visual icon language.
+  const ICON_PILL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/></svg>`;
+  const ICON_CHIP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>`;
+  const ICON_TARGET = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/></svg>`;
+  const ICON_PULSE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`;
+  const ICON_FLASK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.343a2 2 0 0 1-.276 1.017L3.6 18.4A2 2 0 0 0 5.34 21.5h13.32a2 2 0 0 0 1.74-3.1l-5.124-9.04A2 2 0 0 1 15 8.343V2"/><path d="M8.5 2h7"/><path d="M7 15h10"/></svg>`;
+  const ICON_SEARCH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>`;
+  const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8.2 7.2 15.8 10.8M8.2 16.8 15.8 13.2"/></svg>`;
+  const ICON_SHIELD_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5Z"/><path d="m9 12 2 2 4-4"/></svg>`;
+  const ICON_SHUFFLE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l9 16h3"/><path d="M4 16h4l2.2-4"/><path d="m17 4 3 3-3 3"/><path d="m17 20 3-3-3-3"/></svg>`;
+  const ICON_USER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>`;
+  const ICON_FLOW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h11"/></svg>`;
+  const ICON_BOLT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>`;
+  const ICON_CLIPBOARD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="m9 13 2 2 4-4"/></svg>`;
+  const ICON_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>`;
+  const ICON_CLOUD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A4.5 4.5 0 0 0 6.5 19h11Z"/></svg>`;
+  const ICON_SHIELD_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5Z"/><rect x="9.5" y="11" width="5" height="4" rx="1"/><path d="M10.5 11V9.5a1.5 1.5 0 0 1 3 0V11"/></svg>`;
+  const ICON_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+
+  // Same underlying facts as the old plain-sentence footer, now split into
+  // two labeled icon-chip rows (FEATURES / DEPLOYMENT) for a spec-sheet feel.
+  const FEATURE_TAGS = [
+    { label:"Patient-personalized", icon:ICON_USER },
+    { label:"Workflow-integrated", icon:ICON_FLOW },
+    { label:"Immediately actionable", icon:ICON_BOLT },
+    { label:"Clinically justified", icon:ICON_CLIPBOARD },
+  ];
+  const DEPLOYMENT_TAGS = [
+    { label:"FHIR API interoperability", icon:ICON_LINK },
+    { label:"AWS Cloud & other cloud services", icon:ICON_CLOUD },
+    { label:"HIPAA certified", icon:ICON_SHIELD_LOCK },
+    { label:"Academic Medical Center cybersecurity standards", icon:ICON_LOCK },
+  ];
+
+  const GROUPS = [
+    {
+      id: "persevere",
+      name: "PERSEVERE",
+      color: 0x123553,
+      statTag: "HFrEF-focused",
+      tagline: "Treatment optimization intelligence for HFrEF care.",
+      detailsUrl: "reviewacase.html",
+      detailsLabel: "Review a Case",
+      modules: [
+        { id:"med", name:"Treatment Optimization: Evidence-Based Medication", icon:ICON_PILL,
+          back:"Reports, for the 2025 HFrEF cohort, the type of medication optimization recommended — usual drug optimization (continue, introduce a new agent, or increase dose) versus safety/harm management (stop, decrease dose, or replace) — as of the most recent data pull." },
+        { id:"device", name:"Treatment Optimization: Device Eligibility", icon:ICON_CHIP,
+          back:"Reports, for the 2025 HFrEF cohort, how many patients qualify for one or more implantable devices, aggregated by device type. Some patients qualify for more than one device, as of the most recent data pull." },
+        { id:"procedure", name:"Treatment Optimization: Procedure Eligibility", icon:ICON_TARGET,
+          back:"Reports, for the 2025 HFrEF cohort, patients identified with severe AS, TR, or MR who are eligible for a structural heart procedure, as of the most recent data pull." },
+        { id:"advanced", name:"Treatment Optimization: Advanced Heart Failure Therapies", icon:ICON_PULSE,
+          back:"Reports, for the 2025 HFrEF cohort, patients identified as needing evaluation for LVAD or heart transplant, as of the most recent data pull." },
+      ],
+    },
+    {
+      id: "pathfinder",
+      name: "PATHFINDER",
+      color: 0x1c4d84,
+      statTag: "Surveillance",
+      tagline: "Clinical care surveillance across the HFrEF population.",
+      detailsUrl: "pathfinder-radar.html",
+      detailsLabel: "Volume & Actions",
+      modules: [
+        { id:"advance", name:"Clinical Care Surveillance to advance treatment optimization, personalized to each patient", icon:ICON_SEARCH,
+          back:"Surveils the treatment-optimization actions above — medication, device, procedure, advanced therapy, and trial-enrollment eligibility — and determines when each recommendation is ready for release, since these actions can run in parallel, overlap, or require a specific sequence." },
+        { id:"workflow", name:"Clinical Care Surveillance to improve care workflows, identify resource gaps, and streamline care coordination protocols", icon:ICON_SHARE,
+          back:"Surveils care delivery itself, not just treatment decisions — tracking HF, VHD, and CAD quality-measure reporting to identify workflow gaps and streamline care coordination." },
+      ],
+    },
+    {
+      id: "sentinel",
+      name: "SENTINEL",
+      color: 0x3b80ce,
+      statTag: "Trial-ready",
+      tagline: "Clinical trial eligibility & study design intelligence.",
+      detailsUrl: "sentinel.html",
+      detailsLabel: "SENTINEL Program",
+      modules: [
+        { id:"screening", name:"Clinical Trial Eligibility Screening", icon:ICON_SHIELD_CHECK,
+          back:"Screens the HFrEF population for eligibility against active clinical trials — the same SENTINEL technology detailed on its dedicated page." },
+        { id:"hybrid", name:"Hybrid Randomized Clinical Trial Design Screening", icon:ICON_SHUFFLE,
+          back:"Adapts time-and-motion methodology to evaluate retrospective patient cases against the qualifying features of a trial's control cohort, supporting hybrid randomized trial designs." },
+      ],
+    },
+  ];
+
+  const ICON_ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+
+  function hexColor(n){ return "#" + n.toString(16).padStart(6,"0"); }
+  function rgbaColor(n, alpha){
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${alpha})`;
+  }
+
+  // Shared hover accent — a clearly BLUE glow, not a pale near-white one.
+  // The color this used to lerp/emit toward (0xd0dff1) is only barely blue
+  // (R208,G223,B241 — closer to white than to any recognizable blue), so at
+  // meaningful strength/intensity every hovered brick just looked like it
+  // was flashing white instead of glowing.
+  const HOVER_LIGHT_BLUE = 0x5b8fc7;
+
+  /* Every shade in a group's palette shares that group's hue — only
+     saturation/lightness vary. Palette size now matches the group's real
+     module count (5 for PERSEVERE, 2 each for PATHFINDER/SENTINEL) instead
+     of a fixed placeholder pool, since every brick's shade index now maps
+     onto one specific real module (see buildPiece below) rather than an
+     anonymous "feature" slot.
+
+     Lightness is generated around a FIXED target (not each group's own raw
+     base lightness) so every group lands in the same dark-ish register —
+     SENTINEL's base color (0x3b80ce, L≈0.52) is naturally much lighter than
+     the other two (≈0.19/0.31), so building its palette around its own
+     lightness either clipped every shade to one flat clamp ceiling (no
+     visible piece-to-piece variation — bricks stopped reading as distinct,
+     interlocking pieces) or rendered the whole group washed-out bright.
+     Targeting a shared lightness with a wider spread fixes both: no one
+     group reads brighter than the others, and every group still shows
+     clearly differentiated shades brick to brick. */
+  function makeShadePalette(baseHex, count){
+    const base = new THREE.Color(baseHex);
+    const hsl = {};
+    base.getHSL(hsl);
+    // Every color derives from the single ~212° hue: PERSEVERE/PATHFINDER/
+    // SENTINEL's own base hex (#123553, #1C4D84, #3B80CE) already encode the
+    // intended dark -> medium -> light ladder for that hue (raw L ~0.20/0.31/0.52).
+    // Centering directly on that raw L (previous attempt) kept the ladder but
+    // still read as too bright overall, since SENTINEL's own base alone is a
+    // fairly light L≈0.52. Compressing each base lightness down before using
+    // it as the spread's center keeps the SAME relative dark<medium<light
+    // ordering (still "derived" from the anchors) while pulling everything's
+    // absolute brightness down.
+    const LIGHTNESS_COMPRESSION = 0.55;
+    const centerL = hsl.l * LIGHTNESS_COMPRESSION;
+    const palette = [];
+    for(let i=0;i<count;i++){
+      const t = count > 1 ? i - (count-1)/2 : 0;
+      const lightness = THREE.MathUtils.clamp(centerL + t*0.045, 0.05, 0.34);
+      const saturation = THREE.MathUtils.clamp(hsl.s + t*0.05, 0.38, 0.8);
+      const c = new THREE.Color();
+      c.setHSL(hsl.h, saturation, lightness);
+      palette.push(c.getHex());
+    }
+    return palette;
+  }
+  const PALETTES = {};
+  const sideCounters = {};
+  GROUPS.forEach(g => { PALETTES[g.id] = makeShadePalette(g.color, g.modules.length); sideCounters[g.id] = 0; });
+
+  /* =========================================================================
+     SCENE SETUP  (fixed isometric orthographic camera)
+  ========================================================================= */
+
+  const stage = document.getElementById("stage");
+  const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+
+  const scene = new THREE.Scene();
+
+  const ISO_DIR = new THREE.Vector3(1,1,1).normalize();
+  const ISO_DIST = 40;
+  let frustumSize = 16;
+  const camera = new THREE.OrthographicCamera(-8, 8, 8, -8, 0.1, 200);
+  const currentCameraTarget = new THREE.Vector3(0,0,0);
+
+  function setCameraTransform(target){
+    camera.position.copy(target).addScaledVector(ISO_DIR, ISO_DIST);
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+  }
+
+  function updateFrustum(){
+    const aspect = stage.clientWidth / stage.clientHeight;
+    camera.left = -frustumSize*aspect/2;
+    camera.right = frustumSize*aspect/2;
+    camera.top = frustumSize/2;
+    camera.bottom = -frustumSize/2;
+    camera.updateProjectionMatrix();
+  }
+
+  function computeFitFrustum(box, aspect, padding){
+    const corners = [
+      [box.min.x,box.min.y,box.min.z],[box.min.x,box.min.y,box.max.z],
+      [box.min.x,box.max.y,box.min.z],[box.min.x,box.max.y,box.max.z],
+      [box.max.x,box.min.y,box.min.z],[box.max.x,box.min.y,box.max.z],
+      [box.max.x,box.max.y,box.min.z],[box.max.x,box.max.y,box.max.z],
+    ];
+    let maxX=0, maxY=0;
+    const inv = camera.matrixWorldInverse;
+    corners.forEach(([x,y,z]) => {
+      const v = new THREE.Vector3(x,y,z).applyMatrix4(inv);
+      maxX = Math.max(maxX, Math.abs(v.x));
+      maxY = Math.max(maxY, Math.abs(v.y));
+    });
+    const halfHeight = Math.max(maxY, maxX/aspect) * padding;
+    return halfHeight*2;
+  }
+
+  const LEGACY_LIGHT_COMPENSATION = Math.PI;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9 * LEGACY_LIGHT_COMPENSATION);
+  key.position.set(18, 26, 14);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024,1024);
+  key.shadow.camera.left = -26; key.shadow.camera.right = 26;
+  key.shadow.camera.top = 26; key.shadow.camera.bottom = -26;
+  key.shadow.radius = 5;
+  scene.add(key);
+  const fillLight = new THREE.DirectionalLight(0xcaddf2, 0.35 * LEGACY_LIGHT_COMPENSATION);
+  fillLight.position.set(-12, 8, -10);
+  scene.add(fillLight);
+
+  const floorMaterial = new THREE.ShadowMaterial({ opacity: 0.28 });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(260,260), floorMaterial);
+  floor.rotation.x = -Math.PI/2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  /* =========================================================================
+     BUILD BRICKS
+  ========================================================================= */
+
+  const heartGroup = new THREE.Group();
+  scene.add(heartGroup);
+  const bricks = [];
+
+  function buildPiece(zi, r, cellCols, side){
+    const colXs = cellCols.map(c => (c - (cols-1)/2) * SPACING);
+    const centerX = (colXs[0] + colXs[colXs.length-1]) / 2;
+    const y = ((rows-1)/2 - r) * SPACING;
+    const z = (zi - (numLayers-1)/2) * SPACING;
+    const len = cellCols.length;
+
+    // Round-robin over the group's OWN module count, so this piece's shade
+    // AND its "feature" identity (which module it represents when hovered
+    // or clicked, once focused) are the same index — no separate anonymous
+    // feature pool to keep in sync with the real content.
+    const group = GROUPS.find(g => g.id === side);
+    const featureIdx = sideCounters[side]++ % group.modules.length;
+    const color = PALETTES[side][featureIdx];
+    const mat = new THREE.MeshStandardMaterial({ color, roughness:0.42, metalness:0.06, emissive:HOVER_LIGHT_BLUE, emissiveIntensity:0 });
+
+    const grp = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(BRICK*(len-0.1), BRICK*0.9, BRICK*0.9), mat);
+    box.castShadow = true; box.receiveShadow = true;
+    grp.add(box);
+
+    cellCols.forEach((c,i) => {
+      const stud = new THREE.Mesh(new THREE.CylinderGeometry(STUD_R, STUD_R, STUD_H, 14), mat);
+      stud.position.set(colXs[i]-centerX, BRICK*0.45 + STUD_H/2, 0);
+      stud.castShadow = true;
+      grp.add(stud);
+    });
+
+    grp.position.set(centerX, y, z);
+    heartGroup.add(grp);
+
+    bricks.push({
+      group: grp, side, len, zi, featureIdx,
+      home: new THREE.Vector3(centerX, y, z),
+      phase: "assembled",
+      tweenStart: 0, delay: 0,
+      fromPos: new THREE.Vector3(),
+      subAmt: 0,
+      baseColor: new THREE.Color(color),
+    });
+  }
+
+  LAYERS.forEach((layer, zi) => {
+    for(let r=0; r<rows; r++){
+      let c = 0;
+      while(c < cols){
+        if(!layer[r][c]){ c++; continue; }
+        const runSide = sideOf(r,c);
+        let end = c;
+        while(end+1 < cols && layer[r][end+1] && sideOf(r,end+1) === runSide) end++;
+        const runLen = end - c + 1;
+        let cursor = c;
+        chunkRun(runLen).forEach(pieceLen => {
+          const cellCols = Array.from({length:pieceLen}, (_,k) => cursor+k);
+          buildPiece(zi, r, cellCols, runSide);
+          cursor += pieceLen;
+        });
+        c = end + 1;
+      }
+    }
+  });
+
+  const box3 = new THREE.Box3().setFromObject(heartGroup);
+  const liftY = -box3.min.y + 1.8;
+  const heartCenterY = liftY + (box3.max.y + box3.min.y)/2;
+  heartGroup.children.forEach((g,i) => { g.position.y += liftY; bricks[i].home.y += liftY; });
+
+  function weightedMeanX(list){
+    const totalLen = list.reduce((a,b) => a+b.len, 0);
+    return list.reduce((a,b) => a + b.home.x*b.len, 0) / totalLen;
+  }
+
+  /* =========================================================================
+     SOFT PULSING GLOW — step-1 "invite to click" affordance.
+  ========================================================================= */
+
+  function makeGlowTexture(){
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(128,128,0,128,128,128);
+    grad.addColorStop(0, "rgba(28,77,132,0.5)");
+    grad.addColorStop(1, "rgba(28,77,132,0)");
+    g.fillStyle = grad;
+    g.fillRect(0,0,256,256);
+    return new THREE.CanvasTexture(c);
+  }
+  const glowMaterial = new THREE.MeshBasicMaterial({ map: makeGlowTexture(), transparent:true, depthWrite:false });
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(15,15), glowMaterial);
+  glow.position.set(0, heartCenterY, SPACING*2.4);
+  scene.add(glow);
+
+  /* =========================================================================
+     SPLIT / REASSEMBLE / FOCUS STATE MACHINE
+  ========================================================================= */
+
+  const SPLIT_GAP = 6.5;
+  const GROUP_OFFSET = { persevere: -SPLIT_GAP, pathfinder: 0, sentinel: SPLIT_GAP };
+  const ARC_HEIGHT = 1.3;
+  const DURATION = 850;
+  const FOCUS_DURATION = 800;
+
+  let appState = "assembled"; // assembled|splitting|split|reassembling|focusing|focused|unfocusing
+  let focusedGroup = null;
+  const hint = document.getElementById("hint");
+  const pageTitle = document.getElementById("pageTitle");
+  const backBtn = document.getElementById("backBtn");
+  const tooltip = document.getElementById("tooltip");
+  const tooltipTitleEl = tooltip.querySelector(".tt-title");
+  const tooltipDescEl = tooltip.querySelector(".tt-desc");
+  const featurePopup = document.getElementById("featurePopup");
+  const groupLabelsEl = document.getElementById("groupLabels");
+
+  function ease(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+  function sideSplitBox(side){
+    const box = new THREE.Box3();
+    bricks.filter(b => b.side===side).forEach(b => {
+      const hx = BRICK*(b.len-0.1)/2, hy = BRICK*0.9/2 + ARC_HEIGHT*0.3, hz = BRICK*0.9/2;
+      const x = b.home.x + GROUP_OFFSET[side];
+      box.expandByPoint(new THREE.Vector3(x-hx, b.home.y-hy, b.home.z-hz));
+      box.expandByPoint(new THREE.Vector3(x+hx, b.home.y+hy, b.home.z+hz));
+    });
+    return box;
+  }
+  function fullSplitBox(){
+    return GROUPS.reduce((acc, g) => acc ? acc.union(sideSplitBox(g.id)) : sideSplitBox(g.id), null);
+  }
+  // Blend two boxes by center and size independently (not a raw min/max
+  // lerp) so the camera can shift mostly toward the focused group while
+  // only partially shrinking the frustum — that's what keeps the other two
+  // (blurred) groups inside the frame, smaller/off-center, instead of
+  // clipping them out entirely when zooming in.
+  function lerpBoxCenterSize(a, b, centerT, sizeT){
+    const c = a.getCenter(new THREE.Vector3()).lerp(b.getCenter(new THREE.Vector3()), centerT);
+    const s = a.getSize(new THREE.Vector3()).lerp(b.getSize(new THREE.Vector3()), sizeT);
+    return new THREE.Box3(
+      new THREE.Vector3(c.x-s.x/2, c.y-s.y/2, c.z-s.z/2),
+      new THREE.Vector3(c.x+s.x/2, c.y+s.y/2, c.z+s.z/2)
+    );
+  }
+
+  const DEFAULT_BOX = fullSplitBox(); // worst-case framing: fully split apart
+  let currentFitBox = DEFAULT_BOX;
+  let currentPadding = 1.12;
+
+  function refitFrustum(){
+    const aspect = stage.clientWidth / stage.clientHeight;
+    frustumSize = computeFitFrustum(currentFitBox, aspect, currentPadding);
+    updateFrustum();
+  }
+
+  setCameraTransform(currentCameraTarget);
+  refitFrustum();
+
+  /* ---- camera tween (position/target + zoom together) ---- */
+  let camTween = null;
+  function startCameraTween(toBox, padding, duration, onDone){
+    const fromTarget = currentCameraTarget.clone();
+    const toTarget = toBox.getCenter(new THREE.Vector3());
+    const fromFrustum = frustumSize;
+    setCameraTransform(toTarget);
+    const toFrustum = computeFitFrustum(toBox, stage.clientWidth/stage.clientHeight, padding);
+    setCameraTransform(fromTarget);
+    frustumSize = fromFrustum; updateFrustum();
+    camTween = { fromTarget, toTarget, fromFrustum, toFrustum, toBox, padding, start: performance.now(), duration, onDone };
+  }
+
+  function startBrickTween(phase){
+    const now = performance.now();
+    bricks.forEach(b => {
+      b.fromPos.copy(b.group.position);
+      b.delay = Math.abs(b.home.x) * 40;
+      b.tweenStart = now + b.delay;
+      b.phase = phase;
+    });
+    appState = phase;
+    hint.style.opacity = "0";
+    clearHoverEmphasis();
+  }
+  function split(){ startBrickTween("splitting"); }
+  function reassemble(){ startBrickTween("reassembling"); }
+
+  /* ---- blurred "other groups" layer, rendered on a second canvas so a
+     plain CSS filter can blur it — no custom shader pipeline needed ---- */
+  let blurRenderer = null, blurActive = false;
+  function setupBlurLayer(){
+    if(!blurRenderer){
+      blurRenderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+      blurRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const el = blurRenderer.domElement;
+      el.style.cssText = "position:absolute; inset:0; width:100%; height:100%; pointer-events:none; filter:blur(11px) brightness(0.92) saturate(0.8); opacity:0; transition:opacity .5s ease;";
+      stage.insertBefore(el, stage.firstChild); // sits BEHIND the main canvas
+      blurRenderer.setSize(stage.clientWidth, stage.clientHeight);
+    }
+    blurActive = true;
+    requestAnimationFrame(() => { blurRenderer.domElement.style.opacity = "1"; });
+  }
+  function teardownBlurLayer(){
+    if(blurRenderer) blurRenderer.domElement.style.opacity = "0";
+    blurActive = false;
+    // The dual-pass render loop always leaves some group's (and the
+    // floor's) visibility at false when it stops running — restore
+    // everything explicitly so the split view doesn't come back with part
+    // of the heart or the ground plane missing.
+    GROUPS.forEach(g => setGroupVisible(g.id, true));
+    floor.visible = true;
+  }
+  function setGroupVisible(side, visible){
+    bricks.forEach(b => { if(b.side === side) b.group.visible = visible; });
+  }
+
+  function focus(side){
+    if(appState !== "split") return;
+    appState = "focusing";
+    focusedGroup = side;
+    clearHoverEmphasis();
+    hideLabels();
+    hint.style.opacity = "0";
+    backBtn.classList.add("visible");
+    setupBlurLayer();
+    currentPadding = 1.15;
+    const focusBox = lerpBoxCenterSize(DEFAULT_BOX, sideSplitBox(side), 0.55, 0.42);
+    startCameraTween(focusBox, currentPadding, FOCUS_DURATION, () => { appState = "focused"; });
+  }
+
+  function unfocus(){
+    if(appState !== "focused") return;
+    appState = "unfocusing";
+    backBtn.classList.remove("visible");
+    tooltip.classList.remove("visible");
+    hoveredFeatureIdx = null;
+    closeFeaturePopup();
+    teardownBlurLayer();
+    currentPadding = 1.12;
+    currentFitBox = DEFAULT_BOX;
+    startCameraTween(DEFAULT_BOX, currentPadding, FOCUS_DURATION, () => {
+      appState = "split";
+      focusedGroup = null;
+      showLabels();
+      hint.textContent = "Click a feature for details · click elsewhere to reassemble";
+      hint.style.opacity = "1";
+    });
+  }
+
+  /* ---- feature detail: single floating popup ---- */
+  let detailFeature = null; // { side, featureIdx } while the popup is open
+
+  function openFeaturePopup(brick){
+    const isSwitch = detailFeature !== null;
+    detailFeature = { side: brick.side, featureIdx: brick.featureIdx };
+    const group = GROUPS.find(g => g.id === brick.side);
+    const mod = group.modules[brick.featureIdx];
+    const modTag = mod.id.toUpperCase();
+    featurePopup.innerHTML = `
+      <div class="fp-card" style="--accent:${hexColor(group.color)}">
+        <div class="fp-close">&times;</div>
+        <div class="fp-kicker">
+          <span class="fp-kicker-text">${group.name}</span>
+          <span class="fp-mod-id">MOD&nbsp;/&nbsp;${modTag}</span>
+        </div>
+        <div class="fp-title-row">
+          <h4>${mod.name}</h4>
+        </div>
+        <p>${mod.back}</p>
+        <div class="fp-tags">
+          <div class="fp-tags-group">
+            <div class="fp-tags-label">Features</div>
+            <div class="fp-tags-row">${FEATURE_TAGS.map(t => `<span class="fp-tag">${t.icon}${t.label}</span>`).join("")}</div>
+          </div>
+          <div class="fp-tags-group">
+            <div class="fp-tags-label">Deployment</div>
+            <div class="fp-tags-row">${DEPLOYMENT_TAGS.map(t => `<span class="fp-tag">${t.icon}${t.label}</span>`).join("")}</div>
+          </div>
+        </div>
+        <a class="fp-cta" href="${group.detailsUrl}" target="_blank" rel="noopener">${group.detailsLabel} ${ICON_ARROW}</a>
+      </div>
+    `;
+    featurePopup.querySelector(".fp-close").addEventListener("click", (ev) => { ev.stopPropagation(); closeFeaturePopup(); });
+    featurePopup.querySelector(".fp-cta").addEventListener("click", (ev) => ev.stopPropagation());
+    featurePopup.classList.add("visible");
+    if(isSwitch){
+      featurePopup.classList.remove("pulse");
+      void featurePopup.offsetWidth; // restart the animation even on rapid re-clicks
+      featurePopup.classList.add("pulse");
+    }
+  }
+  function closeFeaturePopup(){
+    detailFeature = null;
+    featurePopup.classList.remove("visible");
+  }
+
+  /* ---- section hover emphasis — glow + slight scale on a whole group,
+     triggered by hovering its label or its 3D blocks directly (split view
+     only) ---- */
+  const hoverTarget = { persevere:0, pathfinder:0, sentinel:0 };
+  const hoverEmphasis = { persevere:0, pathfinder:0, sentinel:0 };
+  function clearHoverEmphasis(){ Object.keys(hoverTarget).forEach(k => hoverTarget[k]=0); }
+
+  // Level 2 only (once focused): the hovered feature's blocks lighten
+  // toward this tint — a genuine color shift, not just a brighter glow —
+  // so the hovered cluster reads as visually distinct at a glance.
+  const FEATURE_HIGHLIGHT = new THREE.Color(HOVER_LIGHT_BLUE);
+  const FEATURE_HIGHLIGHT_STRENGTH = 0.22;
+  let hoveredFeatureIdx = null;
+
+  /* ---- level 0: depth reveal on hover (assembled state only) ---- */
+  const LAYER_DEPTH_REST = 0;
+  const LAYER_DEPTH_HOVER = 1;
+  let layerDepth = LAYER_DEPTH_REST;
+  let layerDepthTarget = LAYER_DEPTH_REST;
+
+  const FLOAT_AMPLITUDE = 0.22;
+  const FLOAT_SPEED = 0.0011;
+
+  // Overall size — the heart renders at this fraction of its built geometry
+  // in every state (assembled/split/focused). A group-level scale is enough:
+  // Three.js raycasting and the camera-fit math both key off the actual
+  // world transform, so picking and framing keep working, the heart just
+  // reads smaller inside the same frame.
+  const HEART_SCALE = 0.8;
+
+  // Real heartbeat rhythm (replaces the old plain sine "breathing") — two
+  // quick pulses ("lub-dub": a strong beat then a softer one shortly after)
+  // followed by a rest, repeating, instead of one continuous smooth wave.
+  const HEARTBEAT_PERIOD = 1100; // ms per full beat cycle
+  const HEARTBEAT_PULSE_WIDTH = 85; // ms — width of each individual pulse
+  const HEARTBEAT_LUB_AT = 0;   // ms offset of the first, stronger pulse
+  const HEARTBEAT_DUB_AT = 190; // ms offset of the second, softer pulse
+  const HEARTBEAT_DUB_STRENGTH = 0.55;
+  const HEARTBEAT_SCALE_AMOUNT = 0.022; // peak scale bump at the strongest pulse
+  function heartbeatPulse(tMs){
+    const t = tMs % HEARTBEAT_PERIOD;
+    const lub = Math.exp(-Math.pow((t-HEARTBEAT_LUB_AT)/HEARTBEAT_PULSE_WIDTH, 2));
+    const dub = Math.exp(-Math.pow((t-HEARTBEAT_DUB_AT)/HEARTBEAT_PULSE_WIDTH, 2)) * HEARTBEAT_DUB_STRENGTH;
+    return Math.min(1, lub + dub);
+  }
+
+  /* =========================================================================
+     FLOATING GROUP LABELS — one per group, anchored to its own 3D position
+     (see updateLabels), each with a hover-summary popup nested inside.
+  ========================================================================= */
+
+  const labelEls = {};
+  function renderGroupLabels(){
+    groupLabelsEl.innerHTML = GROUPS.map(g => `
+      <button type="button" class="group-label" id="label-${g.id}" style="--label-bg:${rgbaColor(g.color,0.38)}; --label-bg-hover:${rgbaColor(g.color,0.5)};">
+        <span class="lbl-dot" style="background:${hexColor(g.color)}"></span>
+        <span class="lbl-txt">${g.name}</span>
+        <div class="lbl-popup">
+          <h4>${g.name}</h4>
+          <p>${g.tagline}</p>
+          <div class="lbl-stats">
+            <span class="lbl-stat">${g.modules.length} module${g.modules.length===1?"":"s"}</span>
+            <span class="lbl-stat">${g.statTag}</span>
+          </div>
+        </div>
+      </button>
+    `).join("");
+    GROUPS.forEach(g => {
+      const el = document.getElementById("label-"+g.id);
+      labelEls[g.id] = el;
+      el.addEventListener("pointerenter", () => { if(appState==="split"){ hoverTarget[g.id] = 1; Object.keys(hoverTarget).forEach(k=>{ if(k!==g.id) hoverTarget[k]=0; }); } });
+      el.addEventListener("pointerleave", () => { hoverTarget[g.id] = 0; });
+      el.addEventListener("click", () => focus(g.id));
+    });
+  }
+  renderGroupLabels();
+
+  function showLabels(){ GROUPS.forEach(g => labelEls[g.id].classList.add("visible")); }
+  function hideLabels(){ GROUPS.forEach(g => labelEls[g.id].classList.remove("visible")); }
+
+  const labelAnchor = { persevere:new THREE.Vector3(), pathfinder:new THREE.Vector3(), sentinel:new THREE.Vector3() };
+  function updateLabels(){
+    const w = stage.clientWidth, h = stage.clientHeight;
+    GROUPS.forEach(g => {
+      const p = labelAnchor[g.id].clone().project(camera);
+      const el = labelEls[g.id];
+      el.style.left = ((p.x*0.5+0.5)*w) + "px";
+      el.style.top = ((-p.y*0.5+0.5)*h) + "px";
+    });
+  }
+
+  /* =========================================================================
+     INTERACTION
+  ========================================================================= */
+
+  const raycaster = new THREE.Raycaster();
+  function ndcFromEvent(e){
+    const rect = renderer.domElement.getBoundingClientRect();
+    return new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1, -((e.clientY-rect.top)/rect.height)*2+1);
+  }
+  function pickBrickAt(e, groups){
+    raycaster.setFromCamera(ndcFromEvent(e), camera);
+    const hits = raycaster.intersectObjects(groups, true);
+    if(!hits.length) return null;
+    let obj = hits[0].object;
+    while(obj.parent && !bricks.some(b=>b.group===obj)) obj = obj.parent;
+    return bricks.find(b => b.group === obj) || null;
+  }
+
+  let downX=0, downY=0, downT=0;
+  renderer.domElement.addEventListener("pointerdown", (e) => {
+    downX = e.clientX; downY = e.clientY; downT = performance.now();
+  });
+  renderer.domElement.addEventListener("pointerup", (e) => {
+    const dist = Math.hypot(e.clientX-downX, e.clientY-downY);
+    const dt = performance.now()-downT;
+    if(dist > 8 || dt > 500) return;
+    if(appState === "assembled") split();
+    else if(appState === "split"){
+      // The whole group is actionable, not just its floating label — tap
+      // any block and it focuses into that group. Only tapping genuinely
+      // empty space (no block underneath) collapses back to the unified heart.
+      const hit = pickBrickAt(e, heartGroup.children);
+      if(hit) focus(hit.side); else reassemble();
+    }
+    else if(appState === "focused" && focusedGroup){
+      const hit = pickBrickAt(e, bricks.filter(b => b.side===focusedGroup).map(b => b.group));
+      if(hit){
+        // Re-clicking the same feature no longer closes it — only clicking a
+        // *different* feature replaces the popup content; the popup stays
+        // open until empty space is clicked, Escape is pressed, or its own
+        // close button is used.
+        const same = detailFeature && detailFeature.side===hit.side && detailFeature.featureIdx===hit.featureIdx;
+        if(!same) openFeaturePopup(hit);
+      } else if(detailFeature){
+        closeFeaturePopup();
+      } else {
+        unfocus();
+      }
+    }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(e.key === "Escape" && detailFeature) closeFeaturePopup();
+  });
+  renderer.domElement.addEventListener("pointermove", (e) => {
+    if(appState === "focused" && focusedGroup){
+      const hit = pickBrickAt(e, bricks.filter(b => b.side===focusedGroup).map(b => b.group));
+      if(!hit){ tooltip.classList.remove("visible"); hoveredFeatureIdx = null; return; }
+      if(hit.featureIdx !== hoveredFeatureIdx){
+        hoveredFeatureIdx = hit.featureIdx; // highlights every block sharing this feature
+        const group = GROUPS.find(g => g.id === focusedGroup);
+        const mod = group.modules[hit.featureIdx];
+        tooltipTitleEl.textContent = mod.name;
+        tooltipDescEl.textContent = "Part of the " + group.name + " module set.";
+        tooltip.classList.remove("pulse");
+        void tooltip.offsetWidth;
+        tooltip.classList.add("pulse");
+      }
+      const stageRect = stage.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - stageRect.left + 16) + "px";
+      tooltip.style.top = (e.clientY - stageRect.top + 16) + "px";
+      tooltip.classList.add("visible");
+      return;
+    }
+    if(appState === "split"){
+      const hit = pickBrickAt(e, heartGroup.children);
+      Object.keys(hoverTarget).forEach(gid => { hoverTarget[gid] = hit && hit.side===gid ? 1 : 0; });
+      return;
+    }
+    if(appState === "assembled"){
+      const hit = pickBrickAt(e, heartGroup.children);
+      layerDepthTarget = hit ? LAYER_DEPTH_HOVER : LAYER_DEPTH_REST;
+    }
+  });
+  renderer.domElement.addEventListener("pointerleave", () => {
+    clearHoverEmphasis();
+    layerDepthTarget = LAYER_DEPTH_REST;
+    if(appState === "focused"){ tooltip.classList.remove("visible"); hoveredFeatureIdx = null; }
+  });
+
+  backBtn.addEventListener("click", unfocus);
+
+  /* =========================================================================
+     ANIMATION LOOP
+  ========================================================================= */
+
+  function tick(){
+    requestAnimationFrame(tick);
+    const now = performance.now();
+
+    // camera tween (focus / unfocus)
+    if(camTween){
+      const t = Math.min(1, (now-camTween.start)/camTween.duration);
+      const e = ease(t);
+      const tgt = camTween.fromTarget.clone().lerp(camTween.toTarget, e);
+      setCameraTransform(tgt);
+      currentCameraTarget.copy(tgt);
+      frustumSize = THREE.MathUtils.lerp(camTween.fromFrustum, camTween.toFrustum, e);
+      updateFrustum();
+      if(t >= 1){
+        currentFitBox = camTween.toBox;
+        const done = camTween.onDone;
+        camTween = null;
+        if(done) done();
+      }
+    }
+
+    // idle affordances (assembled state only)
+    if(appState === "assembled"){
+      heartGroup.position.y = Math.sin(now * FLOAT_SPEED) * FLOAT_AMPLITUDE;
+      const pulse = heartbeatPulse(now);
+      heartGroup.scale.setScalar(HEART_SCALE * (1 + pulse * HEARTBEAT_SCALE_AMOUNT));
+      glow.quaternion.copy(camera.quaternion);
+      glow.visible = true;
+      glowMaterial.opacity = 0.45 + pulse * 0.4;
+    } else {
+      heartGroup.position.y = 0;
+      heartGroup.scale.setScalar(HEART_SCALE);
+      glow.visible = false;
+    }
+
+    // brick split/reassemble tween
+    bricks.forEach(b => {
+      if(b.phase !== "splitting" && b.phase !== "reassembling") return;
+      if(now < b.tweenStart) return;
+      const t = Math.min(1, (now - b.tweenStart)/DURATION);
+      const e = ease(t);
+      const target = b.phase === "splitting"
+        ? new THREE.Vector3(b.home.x + GROUP_OFFSET[b.side], b.home.y, b.home.z)
+        : b.home;
+      b.group.position.lerpVectors(b.fromPos, target, e);
+      b.group.position.y += Math.sin(e*Math.PI) * ARC_HEIGHT * (b.phase==="splitting"?1:0.4);
+      if(t >= 1){
+        b.phase = b.phase === "splitting" ? "split" : "assembled";
+        b.group.position.copy(target);
+      }
+    });
+
+    if(appState === "splitting" || appState === "reassembling"){
+      const stillGoing = bricks.some(b => b.phase === "splitting" || b.phase === "reassembling");
+      if(!stillGoing){
+        if(appState === "splitting"){
+          appState = "split";
+          GROUPS.forEach(g => {
+            const list = bricks.filter(b => b.side===g.id);
+            labelAnchor[g.id].set(weightedMeanX(list) + GROUP_OFFSET[g.id], liftY - 0.4, 0);
+          });
+          showLabels();
+          hint.textContent = "Click a feature for details · click elsewhere to reassemble";
+          hint.style.opacity = "1";
+        } else {
+          appState = "assembled";
+          hideLabels(); // labels only belong to the split/focused views, not the closed heart
+          hint.textContent = "Click the heart to explore PERSEVERE, PATHFINDER & SENTINEL";
+          hint.style.opacity = "1";
+        }
+      }
+    }
+
+    if(appState === "split" || appState === "splitting") updateLabels();
+
+    if(appState === "assembled"){
+      layerDepth += (layerDepthTarget - layerDepth) * 0.1;
+    }
+
+    Object.keys(hoverEmphasis).forEach(gid => {
+      hoverEmphasis[gid] += (hoverTarget[gid] - hoverEmphasis[gid]) * 0.18;
+    });
+    bricks.forEach(b => {
+      const subTarget = (appState === "focused" && focusedGroup === b.side && hoveredFeatureIdx === b.featureIdx) ? 1 : 0;
+      b.subAmt += (subTarget - b.subAmt) * 0.22;
+
+      const amt = Math.max(hoverEmphasis[b.side], b.subAmt);
+      const mat = b.group.children[0].material;
+
+      const depthMult = 0.92 + layerDepth * 0.38;
+      let depthScale = 1;
+      if(appState === "assembled"){
+        if(b.zi === 0){
+          depthScale = 1 + layerDepth * 0.05;
+          b.group.position.z = b.home.z * depthMult;
+        } else if(b.zi === 2){
+          depthScale = 1 - layerDepth * 0.12;
+          b.group.position.z = b.home.z * depthMult;
+        } else {
+          b.group.position.z = b.home.z;
+        }
+      }
+
+      const emphasisScale = 1 + amt*0.08;
+      b.group.scale.set(emphasisScale, emphasisScale, emphasisScale * depthScale);
+      mat.emissiveIntensity = amt*0.25;
+      // Level 2 only (subAmt, not the combined group-wide amt): lighten the
+      // hovered feature's actual base color, distinct from the whole-group glow.
+      mat.color.copy(b.baseColor).lerp(FEATURE_HIGHLIGHT, b.subAmt * FEATURE_HIGHLIGHT_STRENGTH);
+    });
+
+    // render: single pass normally, dual-pass (sharp + blurred) when focused.
+    // The floor's shadow lives in the BLURRED pass only — the sharp canvas
+    // draws ONLY the focused group's bricks (no shadow) against a
+    // transparent background, letting the blurred floor's shadow + other
+    // groups show through everywhere else.
+    if(blurRenderer && blurActive && focusedGroup){
+      const sel = focusedGroup;
+      GROUPS.forEach(g => setGroupVisible(g.id, g.id !== sel));
+      floor.visible = true;
+      blurRenderer.render(scene, camera);
+      GROUPS.forEach(g => setGroupVisible(g.id, g.id === sel));
+      floor.visible = false;
+      renderer.render(scene, camera);
+    } else {
+      floor.visible = true;
+      renderer.render(scene, camera);
+    }
+  }
+  tick();
+
+  function handleResize(){
+    renderer.setSize(stage.clientWidth, stage.clientHeight);
+    if(blurRenderer) blurRenderer.setSize(stage.clientWidth, stage.clientHeight);
+    if(!camTween) refitFrustum();
+    if(appState === "split") updateLabels();
+  }
+  window.addEventListener("resize", handleResize);
+  renderer.setSize(stage.clientWidth, stage.clientHeight);
+})();
+</script>
+</body>
+</html>

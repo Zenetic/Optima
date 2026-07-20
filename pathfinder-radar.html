@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Volume & Actions — PATHFINDER</title>
+<style>
+  :root{ --accent:#2f8f8a; }
+  html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
+  .wrap{ max-width:960px; margin:0 auto; padding:28px 24px 80px; }
+  .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
+  .back:hover{ color:var(--accent); }
+  .eyebrow{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
+  h1{ margin:0 0 6px; font-size:26px; letter-spacing:-0.01em; }
+  .sub{ margin:0 0 20px; font-size:14px; color:#5b6474; line-height:1.5; max-width:680px; }
+  .placeholder-note{
+    display:flex; gap:10px; align-items:flex-start; background:#fff7e6; border:1px solid #f3d99a;
+    border-radius:10px; padding:12px 14px; margin-bottom:24px; font-size:12.5px; color:#8a6412; line-height:1.5;
+  }
+  .placeholder-note b{ color:#6b4a05; }
+  .gv-note{
+    background:#eef6f5; border:1px solid #bfe1de; border-radius:10px; padding:14px 16px; margin-bottom:28px;
+    font-size:12.5px; color:#1f5a56; line-height:1.6;
+  }
+  .gv-note b{ color:#0f3f3c; }
+
+  .layout{ display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; }
+  .chart-card{
+    background:#fff; border-radius:16px; padding:20px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
+    border:1px solid #eef1f7; flex:none;
+  }
+  .chart-caption{ text-align:center; font-size:11.5px; color:#9aa3b2; margin-top:8px; }
+
+  .table-card{
+    background:#fff; border-radius:16px; padding:20px 22px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
+    border:1px solid #eef1f7; flex:1; min-width:320px;
+  }
+  .table-card h2{ margin:0 0 4px; font-size:15px; }
+  .table-card .table-sub{ margin:0 0 14px; font-size:12px; color:#9aa3b2; }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:0 10px 8px 0; border-bottom:1px solid #eef1f7; }
+  td{ padding:9px 10px 9px 0; border-bottom:1px solid #f4f6fb; }
+  td.num{ font-weight:800; color:#0f1b3d; text-align:right; padding-right:0; }
+  tr:last-child td{ border-bottom:none; }
+  .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+
+  footer{ margin-top:36px; font-size:11.5px; color:#9aa3b2; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
+  <p class="eyebrow">PATHFINDER · Volume &amp; Actions</p>
+  <h1>Clinical Actions — HFrEF Population</h1>
+  <p class="sub">Where every patient in the current HFrEF population stands at the time of data pull, and what action their case is waiting on.</p>
+
+  <div class="placeholder-note">
+    <span>&#9888;&#65039;</span>
+    <span><b>Placeholder content.</b> Chart and table values below are illustrative sample data, not a real population pull.</span>
+  </div>
+
+  <div class="gv-note">
+    <b>Why this view exists:</b> people outside active clinical care rarely see what a clinical team is actually facing day to day — the chart below isn't just showing "categories," it's showing how many patients need help <em>at the same time</em>, often for more than one reason at once. The table alongside it keeps the raw patient counts visible so the volume doesn't get lost inside the shape of the chart.
+  </div>
+
+  <div class="layout">
+    <div class="chart-card">
+      <canvas id="radar" width="420" height="420"></canvas>
+      <div class="chart-caption">Relative volume by action category (illustrative)</div>
+    </div>
+
+    <div class="table-card">
+      <h2>Patient Counts by Category</h2>
+      <p class="table-sub">A patient can appear in more than one row.</p>
+      <table>
+        <thead><tr><th>Category</th><th style="text-align:right;">Patients</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Features: patient-personalized, workflow-integrated (triggered when actually needed, not in isolation), immediately actionable, clinically justified. Deployment: FHIR API interoperability, installable on AWS Cloud / other cloud services, HIPAA certified, meets the cybersecurity standards required by Academic Medical Centers.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Illustrative sample data only — see placeholder note above. Values are
+  // 0-100 (relative volume) for the radar plot, paired with a rough patient
+  // count for the table so the raw scale of "how many people need help
+  // right now" doesn't disappear into a normalized chart shape.
+  const DATA = [
+    { label:"ACT HFrEF",                    sub:"GDMT optimization, awaiting prior cycle, labs/tests requested", value:82, count:146 },
+    { label:"REFER",                        sub:"Devices & procedures",                                          value:58, count:97  },
+    { label:"Transition — Amyloidosis",     sub:"Outpatient care transitioned to Care Team",                     value:22, count:19  },
+    { label:"Transition — CKD Stage 5",     sub:"Outpatient care transitioned to Care Team",                     value:31, count:28  },
+    { label:"Transition — Pregnancy",       sub:"Outpatient care transitioned to Care Team",                     value:12, count:6   },
+    { label:"Safety / Harm",                sub:"Drug stop, dose decrease, or replacement flagged",              value:44, count:52  },
+  ];
+
+  const ACCENT = "#2f8f8a";
+
+  function drawRadar(){
+    const canvas = document.getElementById("radar");
+    const ctx = canvas.getContext("2d");
+    const cx = canvas.width/2, cy = canvas.height/2;
+    const radius = Math.min(cx,cy) - 68;
+    const n = DATA.length;
+    const rings = 4;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    function pointFor(i, r){
+      const angle = -Math.PI/2 + (i/n)*Math.PI*2;
+      return [cx + Math.cos(angle)*r, cy + Math.sin(angle)*r];
+    }
+
+    // grid rings
+    ctx.strokeStyle = "rgba(15,27,61,0.08)";
+    ctx.lineWidth = 1;
+    for(let ring=1; ring<=rings; ring++){
+      const r = radius * (ring/rings);
+      ctx.beginPath();
+      for(let i=0;i<=n;i++){
+        const [x,y] = pointFor(i % n, r);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+
+    // axis spokes + labels
+    ctx.strokeStyle = "rgba(15,27,61,0.14)";
+    ctx.fillStyle = "#5b6474";
+    ctx.font = "11px -apple-system, Segoe UI, Roboto, sans-serif";
+    for(let i=0;i<n;i++){
+      const [x,y] = pointFor(i, radius);
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.lineTo(x,y);
+      ctx.stroke();
+
+      const [lx,ly] = pointFor(i, radius + 34);
+      ctx.textAlign = Math.cos(-Math.PI/2 + (i/n)*Math.PI*2) > 0.15 ? "left" : Math.cos(-Math.PI/2 + (i/n)*Math.PI*2) < -0.15 ? "right" : "center";
+      const words = DATA[i].label.split(" ");
+      let line = "";
+      const lines = [];
+      words.forEach(w => {
+        if((line + " " + w).trim().length > 16){ lines.push(line.trim()); line = w; }
+        else line = (line + " " + w).trim();
+      });
+      if(line) lines.push(line);
+      lines.forEach((ln, li) => ctx.fillText(ln, lx, ly + li*12 - (lines.length-1)*6));
+    }
+
+    // data polygon
+    ctx.beginPath();
+    DATA.forEach((d,i) => {
+      const [x,y] = pointFor(i, radius * (d.value/100));
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = ACCENT + "33";
+    ctx.strokeStyle = ACCENT;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+
+    // data points
+    DATA.forEach((d,i) => {
+      const [x,y] = pointFor(i, radius * (d.value/100));
+      ctx.beginPath();
+      ctx.arc(x,y,3.5,0,Math.PI*2);
+      ctx.fillStyle = ACCENT;
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  }
+  drawRadar();
+
+  const tbody = document.getElementById("tableBody");
+  tbody.innerHTML = DATA.map(d => `
+    <tr>
+      <td><span class="dot" style="background:${ACCENT}"></span>${d.label}<br/><span style="color:#9aa3b2; font-size:11px;">${d.sub}</span></td>
+      <td class="num">${d.count}</td>
+    </tr>
+  `).join("");
+})();
+</script>
+</body>
+</html>

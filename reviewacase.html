@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Review a Case — PERSEVERE</title>
+<style>
+  :root{ --accent:#1c4d84; }
+  html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
+  .wrap{ max-width:880px; margin:0 auto; padding:28px 24px 80px; }
+  .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
+  .back:hover{ color:var(--accent); }
+  .eyebrow{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
+  h1{ margin:0 0 6px; font-size:26px; letter-spacing:-0.01em; }
+  .sub{ margin:0 0 28px; font-size:14px; color:#5b6474; line-height:1.5; max-width:640px; }
+  .placeholder-note{
+    display:flex; gap:10px; align-items:flex-start; background:#fff7e6; border:1px solid #f3d99a;
+    border-radius:10px; padding:12px 14px; margin-bottom:28px; font-size:12.5px; color:#8a6412; line-height:1.5;
+  }
+  .placeholder-note b{ color:#6b4a05; }
+
+  .patient-card{
+    background:#fff; border-radius:16px; padding:20px 22px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
+    display:flex; flex-wrap:wrap; gap:24px; margin-bottom:28px; border:1px solid #eef1f7;
+  }
+  .patient-field{ min-width:120px; }
+  .patient-field .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:#9aa3b2; margin-bottom:3px; }
+  .patient-field .val{ font-size:14.5px; font-weight:700; color:#0f1b3d; }
+
+  .section-title{ font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#0f1b3d; margin:30px 0 12px; }
+
+  .rec-card{
+    background:#fff; border-radius:14px; padding:16px 18px; margin-bottom:12px;
+    border:1px solid #eef1f7; box-shadow:0 8px 22px -16px rgba(15,27,61,0.2);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  }
+  .rec-main{ flex:1; }
+  .rec-main h3{ margin:0 0 6px; font-size:14.5px; }
+  .rec-main p{ margin:0; font-size:12.5px; color:#5b6474; line-height:1.55; }
+  .badge{
+    flex:none; font-size:11px; font-weight:800; padding:5px 12px; border-radius:999px; white-space:nowrap;
+  }
+  .badge.recommended{ background:#e3f3e6; color:#1e7a34; }
+  .badge.pending{ background:#fff2d9; color:#a6720a; }
+  .badge.not-eligible{ background:#f1f2f5; color:#6b7280; }
+
+  footer{ margin-top:40px; font-size:11.5px; color:#9aa3b2; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
+  <p class="eyebrow">PERSEVERE · Review a Case</p>
+  <h1>Case Review</h1>
+  <p class="sub">A single-patient view across the five PERSEVERE treatment-optimization categories, so a clinician can review — and act on — every open recommendation for one patient in one place.</p>
+
+  <div class="placeholder-note">
+    <span>&#9888;&#65039;</span>
+    <span><b>Placeholder content.</b> This page is a layout reference for the Review a Case flow. Patient details, recommendation text, and statuses below are sample data, not a real case.</span>
+  </div>
+
+  <div class="patient-card">
+    <div class="patient-field"><div class="lbl">Patient</div><div class="val">Sample Patient</div></div>
+    <div class="patient-field"><div class="lbl">MRN</div><div class="val">000-00-0000</div></div>
+    <div class="patient-field"><div class="lbl">Age / Sex</div><div class="val">68 / F</div></div>
+    <div class="patient-field"><div class="lbl">EF (last known)</div><div class="val">28%</div></div>
+    <div class="patient-field"><div class="lbl">HF Etiology</div><div class="val">Non-ischemic</div></div>
+    <div class="patient-field"><div class="lbl">Data as of</div><div class="val">Most recent pull</div></div>
+  </div>
+
+  <div class="section-title">Open Recommendations</div>
+
+  <div class="rec-card">
+    <div class="rec-main">
+      <h3>Evidence-Based Medication</h3>
+      <p>GDMT optimization opportunity identified — candidate for dose increase on current beta-blocker; SGLT2i not yet initiated.</p>
+    </div>
+    <span class="badge recommended">Recommended</span>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-main">
+      <h3>Device Eligibility</h3>
+      <p>Meets criteria for CRT-D evaluation based on QRS duration and EF; awaiting cardiology referral confirmation.</p>
+    </div>
+    <span class="badge pending">Pending review</span>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-main">
+      <h3>Procedure Eligibility</h3>
+      <p>No severe AS, TR, or MR identified on most recent echo — structural heart referral not indicated at this time.</p>
+    </div>
+    <span class="badge not-eligible">Not eligible</span>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-main">
+      <h3>Advanced Heart Failure Therapies</h3>
+      <p>No current indicators for LVAD or transplant evaluation based on latest functional status and hemodynamics.</p>
+    </div>
+    <span class="badge not-eligible">Not eligible</span>
+  </div>
+
+  <div class="rec-card">
+    <div class="rec-main">
+      <h3>Clinical Trial Enrollment</h3>
+      <p>Meets general HF eligibility criteria; matched to one actively enrolling trial pending confirmation of exclusion criteria.</p>
+    </div>
+    <span class="badge recommended">Recommended</span>
+  </div>
+
+  <footer>
+    Features: patient-personalized, workflow-integrated (triggered when actually needed, not in isolation), immediately actionable, clinically justified. Deployment: FHIR API interoperability, installable on AWS Cloud / other cloud services, HIPAA certified, meets the cybersecurity standards required by Academic Medical Centers.
+  </footer>
+</div>
+</body>
+</html>
