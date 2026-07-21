@@ -189,16 +189,12 @@
   }
   .fp-mono{ font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace; }
   .fp-card .fp-kicker{
-    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    display:flex; align-items:baseline; gap:10px;
     margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid rgba(15,27,61,0.1);
   }
   .fp-card .fp-kicker-text{
     font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
     font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); font-weight:700;
-  }
-  .fp-card .fp-mod-id{
-    font-family:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-    font-size:11px; letter-spacing:.03em; color:#9aa5b8; white-space:nowrap;
   }
   /* The icon "hangs" to the left of the content column via negative offset
      so the title text starts flush at the same left edge as the paragraph
@@ -286,6 +282,7 @@
   const GAP = 0.11;
   const SPACING = BRICK + GAP;
   const STUD_R = BRICK*0.28, STUD_H = BRICK*0.22;
+  const BRICK_EDGE_SOFTEN = 0.05; // world units — small rounded bevel on each brick's edges, see roundedBoxGeometry below
 
   const rows = HEART_BITMAP.length, cols = HEART_BITMAP[0].length, numLayers = LAYERS.length;
   const THIRD = cols/3;
@@ -451,22 +448,25 @@
     const base = new THREE.Color(baseHex);
     const hsl = {};
     base.getHSL(hsl);
-    // Every color derives from the single ~212° hue: PERSEVERE/PATHFINDER/
-    // SENTINEL's own base hex (#123553, #1C4D84, #3B80CE) already encode the
-    // intended dark -> medium -> light ladder for that hue (raw L ~0.20/0.31/0.52).
-    // Centering directly on that raw L (previous attempt) kept the ladder but
-    // still read as too bright overall, since SENTINEL's own base alone is a
-    // fairly light L≈0.52. Compressing each base lightness down before using
-    // it as the spread's center keeps the SAME relative dark<medium<light
-    // ordering (still "derived" from the anchors) while pulling everything's
-    // absolute brightness down.
-    const LIGHTNESS_COMPRESSION = 0.55;
-    const centerL = hsl.l * LIGHTNESS_COMPRESSION;
+    // Widened to match the reference heart image, which shows a much wider
+    // light-to-dark spread — near-frost-pale blue down through mid blue to
+    // deep navy — than the previous version allowed (that one compressed
+    // and clamped every brick's final lightness to a 0.05–0.34 ceiling, so
+    // nothing ever rendered lighter than a fairly dark mid-tone). The center
+    // and spread are now shared across all three groups (rather than each
+    // group centering on its OWN darker/lighter base hue) so PERSEVERE/
+    // PATHFINDER/SENTINEL draw from the same wide tonal range and read as
+    // one continuous gradient, matching the reference photo, instead of
+    // three separately-clamped brightness bands. Saturation now eases DOWN
+    // (not up) for the lighter shades, since pale colors read as softer/
+    // frostier when slightly less saturated, and richer/deeper when darker.
+    const LIGHTNESS_CENTER = 0.46;
+    const LIGHTNESS_SPREAD = 0.22;
     const palette = [];
     for(let i=0;i<count;i++){
       const t = count > 1 ? i - (count-1)/2 : 0;
-      const lightness = THREE.MathUtils.clamp(centerL + t*0.045, 0.05, 0.34);
-      const saturation = THREE.MathUtils.clamp(hsl.s + t*0.05, 0.38, 0.8);
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.16, 0.82);
+      const saturation = THREE.MathUtils.clamp(hsl.s - t*0.06, 0.3, 0.72);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
@@ -611,6 +611,47 @@
   scene.add(heartGroup);
   const bricks = [];
 
+  // A small rounded rectangle in the XY plane, used as the cross-section for
+  // roundedBoxGeometry below (rounds the 4 vertical corner edges).
+  function roundedRectShape(w, h, r){
+    const shape = new THREE.Shape();
+    const x = -w/2, y = -h/2;
+    shape.moveTo(x, y + r);
+    shape.lineTo(x, y + h - r);
+    shape.quadraticCurveTo(x, y + h, x + r, y + h);
+    shape.lineTo(x + w - r, y + h);
+    shape.quadraticCurveTo(x + w, y + h, x + w, y + h - r);
+    shape.lineTo(x + w, y + r);
+    shape.quadraticCurveTo(x + w, y, x + w - r, y);
+    shape.lineTo(x + r, y);
+    shape.quadraticCurveTo(x, y, x, y + r);
+    return shape;
+  }
+  // A box with all 12 edges softly rounded (instead of THREE.BoxGeometry's
+  // sharp edges) — extrudes a rounded rectangle with a matching bevel on the
+  // extrusion ends, so the corner rounding and the end-cap rounding meet up
+  // consistently. The rectangle/extrude depth are shrunk by exactly `bevel`
+  // first so the FINAL bevel-inclusive silhouette comes out to exactly
+  // width x height x depth — brick-to-brick seams stay exactly where
+  // THREE.BoxGeometry would have put them, just with softened edges.
+  function roundedBoxGeometry(width, height, depth, bevel){
+    const shapeW = Math.max(width - 2*bevel, 0.001);
+    const shapeH = Math.max(height - 2*bevel, 0.001);
+    const r = Math.min(bevel, Math.min(shapeW, shapeH)/2);
+    const shape = roundedRectShape(shapeW, shapeH, r);
+    const extrudeDepth = Math.max(depth - 2*bevel, 0.001);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: extrudeDepth,
+      bevelEnabled: true,
+      bevelThickness: bevel,
+      bevelSize: bevel,
+      bevelSegments: 1,
+      curveSegments: 2,
+    });
+    geo.center();
+    return geo;
+  }
+
   function buildPiece(zi, r, cellCols, side){
     const colXs = cellCols.map(c => (c - (cols-1)/2) * SPACING);
     const centerX = (colXs[0] + colXs[colXs.length-1]) / 2;
@@ -628,7 +669,7 @@
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.42, metalness:0.06, emissive:HOVER_LIGHT_BLUE, emissiveIntensity:0 });
 
     const grp = new THREE.Group();
-    const box = new THREE.Mesh(new THREE.BoxGeometry(BRICK*(len-0.1), BRICK*0.9, BRICK*0.9), mat);
+    const box = new THREE.Mesh(roundedBoxGeometry(BRICK*(len-0.1), BRICK*0.9, BRICK*0.9, BRICK_EDGE_SOFTEN), mat);
     box.castShadow = true; box.receiveShadow = true;
     grp.add(box);
 
@@ -950,13 +991,11 @@
     detailFeature = { side: brick.side, featureIdx: brick.featureIdx };
     const group = GROUPS.find(g => g.id === brick.side);
     const mod = group.modules[brick.featureIdx];
-    const modTag = mod.id.toUpperCase();
     featurePopup.innerHTML = `
       <div class="fp-card" style="--accent:${hexColor(group.color)}">
         <div class="fp-close">&times;</div>
         <div class="fp-kicker">
           <span class="fp-kicker-text">${group.name}</span>
-          <span class="fp-mod-id">MOD&nbsp;/&nbsp;${modTag}</span>
         </div>
         <div class="fp-title-row">
           <h4>${mod.name}</h4>
@@ -1027,12 +1066,15 @@
   // Real heartbeat rhythm (replaces the old plain sine "breathing") — two
   // quick pulses ("lub-dub": a strong beat then a softer one shortly after)
   // followed by a rest, repeating, instead of one continuous smooth wave.
-  const HEARTBEAT_PERIOD = 1100; // ms per full beat cycle
-  const HEARTBEAT_PULSE_WIDTH = 85; // ms — width of each individual pulse
+  // Slowed down and rounded off from the original tuning (period 1100ms,
+  // pulse width 85ms), which read as a bit quick/sharp — longer rest
+  // between beats and a wider, gentler pulse shape for a softer feel.
+  const HEARTBEAT_PERIOD = 1700; // ms per full beat cycle (was 1100 — longer rest between beats)
+  const HEARTBEAT_PULSE_WIDTH = 130; // ms — width of each individual pulse (was 85 — softer, less snappy)
   const HEARTBEAT_LUB_AT = 0;   // ms offset of the first, stronger pulse
-  const HEARTBEAT_DUB_AT = 190; // ms offset of the second, softer pulse
-  const HEARTBEAT_DUB_STRENGTH = 0.55;
-  const HEARTBEAT_SCALE_AMOUNT = 0.022; // peak scale bump at the strongest pulse
+  const HEARTBEAT_DUB_AT = 300; // ms offset of the second, softer pulse (kept proportional to the new period)
+  const HEARTBEAT_DUB_STRENGTH = 0.5;
+  const HEARTBEAT_SCALE_AMOUNT = 0.018; // peak scale bump at the strongest pulse (was 0.022 — gentler bump)
   function heartbeatPulse(tMs){
     const t = tMs % HEARTBEAT_PERIOD;
     const lub = Math.exp(-Math.pow((t-HEARTBEAT_LUB_AT)/HEARTBEAT_PULSE_WIDTH, 2));

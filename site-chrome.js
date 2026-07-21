@@ -80,9 +80,13 @@
       </a>
       <div class="sc-footer-col">
         <p class="sc-footer-head">Comprehensive HF Management</p>
-        <a href="reviewacase.html">PERSEVERE</a>
-        <a href="pathfinder-radar.html">PATHFINDER</a>
-        <a href="sentinel.html">SENTINEL</a>
+        <!-- Footer links route to Request a Demo for this phase (unlike the
+             header's Capabilities dropdown, which still links straight to
+             each program's detail page) — these three products aren't
+             ready for a self-serve deep link from the footer yet. -->
+        <a href="request-demo.html">PERSEVERE</a>
+        <a href="request-demo.html">PATHFINDER</a>
+        <a href="request-demo.html">SENTINEL</a>
       </div>
       <div class="sc-footer-col">
         <p class="sc-footer-head">Resources</p>
