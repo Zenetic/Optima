@@ -63,28 +63,31 @@
 
 /* ---------- Footer ---------- */
 .sc-footer{ background:#f7f7fa; position:sticky; bottom:0; z-index:90; }
+/* Vertical padding/margins trimmed down from the original Figma spec
+   (64px/32px/40px) so the footer takes up noticeably less of the viewport,
+   especially now that it's sticky and visible on every capability page. */
 .sc-footer-cols{
   display:flex; gap:64px; align-items:flex-start; justify-content:center;
-  max-width:1312px; margin:0 auto; padding:64px 64px 0; flex-wrap:wrap;
+  max-width:1312px; margin:0 auto; padding:28px 64px 0; flex-wrap:wrap;
 }
 .sc-footer-logo{ margin-top:2px; }
-.sc-footer-col{ display:flex; flex-direction:column; gap:10px; min-width:140px; }
+.sc-footer-col{ display:flex; flex-direction:column; gap:8px; min-width:140px; }
 .sc-footer-head{ margin:0; font-size:14px; font-weight:600; color:#1f1f1f; }
 .sc-footer-head-link{ text-decoration:none; }
 .sc-footer-head-link:hover{ text-decoration:underline; }
 .sc-footer-col a{ font-size:13px; color:#737373; text-decoration:none; }
 .sc-footer-col a:hover{ color:#1f1f1f; text-decoration:underline; }
 
-.sc-footer-divider{ max-width:1312px; margin:32px auto 0; height:1px; background:#e0e0e5; }
+.sc-footer-divider{ max-width:1312px; margin:18px auto 0; height:1px; background:#e0e0e5; }
 .sc-footer-bottom{
-  max-width:1312px; margin:0 auto; padding:16px 64px 40px;
+  max-width:1312px; margin:0 auto; padding:12px 64px 18px;
   display:flex; gap:32px; justify-content:center; flex-wrap:wrap;
 }
 .sc-footer-bottom p{ margin:0; font-size:12px; color:#8c8c8c; white-space:nowrap; }
 
 @media (max-width:720px){
-  .sc-footer-cols{ padding:48px 24px 0; gap:40px; }
-  .sc-footer-bottom{ padding:16px 24px 32px; }
+  .sc-footer-cols{ padding:22px 24px 0; gap:28px; }
+  .sc-footer-bottom{ padding:12px 24px 16px; }
   .sc-footer-bottom p{ white-space:normal; text-align:center; }
 }
 

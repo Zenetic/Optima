@@ -6,6 +6,7 @@
 <title>Case Evolution — PERSEVERE</title>
 <link rel="stylesheet" href="site-chrome.css" />
 <style>
+  :root{ --accent:#1c4d84; }
   *, *::before, *::after{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; background:#FFFFFF; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1A1A1F; }
   button{ font-family:inherit; }
@@ -15,7 +16,18 @@
      step, no React. Data, colors, and animation timings are preserved
      exactly from the original component. */
 
-  .ce-page{ background:#FFFFFF; min-height:100vh; padding:24px; }
+  /* Title/back-button block — shared verbatim (selectors and values) with
+     pathfinder-radar.html and sentinel.html's .back/.eyebrow/h1/.sub so all
+     three capability pages read as one consistent header style, just with
+     PERSEVERE's own accent color. */
+  .cap-header{ max-width:1440px; margin:0 auto; padding:8px 24px 0; }
+  .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
+  .back:hover{ color:var(--accent); }
+  .eyebrow{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
+  .cap-header h1{ margin:0 0 6px; font-size:26px; letter-spacing:-0.01em; }
+  .sub{ margin:0 0 20px; font-size:14px; color:#5b6474; line-height:1.5; max-width:680px; }
+
+  .ce-page{ background:#FFFFFF; min-height:100vh; padding:0 24px 24px; }
   /* Cap the dashboard's width at 1440px and center it — previously it
      stretched edge-to-edge on wide viewports. Below 1440px it just fills
      the available width as before; the existing container queries at
@@ -44,6 +56,12 @@
 </head>
 <body data-demo-popup>
 <div id="site-header"></div>
+<div class="cap-header">
+  <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
+  <p class="eyebrow">PERSEVERE</p>
+  <h1>Patient Case Evolution</h1>
+  <p class="sub">HF-rEF Patient Journey — tracking a single patient case through PERSEVERE's care optimization workflow over time.</p>
+</div>
 <div class="ce-page">
   <div id="ceRoot" class="ce-root"></div>
 </div>
@@ -161,16 +179,12 @@
   const root = document.getElementById("ceRoot");
   const grayStyle = on => on ? "filter:none;opacity:1;" : "filter:grayscale(1);opacity:0.4;";
 
+  // Title and back-arrow now live in the static .cap-header block above
+  // #ceRoot (shared styling with pathfinder-radar.html/sentinel.html) —
+  // this only renders the status-color legend.
   function renderHeader(){
     return `
-      <div class="ce-header">
-        <div style="display:flex;align-items:flex-start;gap:12px;">
-          <span class="back-arrow" id="backBtn">${backArrowSVG()}</span>
-          <div>
-            <p style="font-size:26px;font-weight:700;color:${CO.navy};margin:0 0 4px;">Patient Case Evolution</p>
-            <p style="font-size:15px;font-weight:600;color:${CO.blue};margin:0;">HF-rEF Patient Journey</p>
-          </div>
-        </div>
+      <div class="ce-header" style="justify-content:flex-end;">
         <div style="background:#FFF;border:1px solid ${CO.border};border-radius:12px;padding:12px 16px;">
           <div style="display:flex;gap:24px;margin-bottom:8px;flex-wrap:wrap;">
             <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.green};"></span>Stable / Improved</span>

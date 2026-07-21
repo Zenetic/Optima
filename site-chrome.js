@@ -99,7 +99,7 @@
     </div>
     <div class="sc-footer-divider"></div>
     <div class="sc-footer-bottom">
-      <p>&copy; Optima Integrated Health</p>
+      <p>Optima Integrated Health, Inc. &copy; 2026 All Rights Reserved</p>
       <p>OPTIMA Headquarters &mdash; 74 Langton Street, San Francisco, CA-94103</p>
     </div>
   `;
