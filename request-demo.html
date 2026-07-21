@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Request a Demo — OPTIMA</title>
+<link rel="stylesheet" href="site-chrome.css" />
+<style>
+  :root{ --accent:#1c4d84; }
+  html,body{ margin:0; padding:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1f1f1f; }
+  *,*::before,*::after{ box-sizing:border-box; }
+
+  .wrap{ max-width:640px; margin:0 auto; padding:56px 24px 90px; }
+  .eyebrow{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 8px; }
+  h1{ margin:0 0 10px; font-size:32px; letter-spacing:-0.01em; }
+  .sub{ margin:0 0 28px; font-size:15px; color:#5b6474; line-height:1.55; max-width:520px; }
+
+  .placeholder-note{
+    display:flex; gap:10px; align-items:flex-start; background:#fff7e6; border:1px solid #f3d99a;
+    border-radius:10px; padding:12px 14px; margin-bottom:32px; font-size:12.5px; color:#8a6412; line-height:1.5;
+  }
+  .placeholder-note b{ color:#6b4a05; }
+
+  form{ display:flex; flex-direction:column; gap:18px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12.5px; font-weight:700; color:#1f1f1f; }
+  .field input, .field textarea, .field select{
+    font:inherit; font-size:14px; padding:11px 13px; border-radius:9px; border:1px solid #dde1e8;
+    background:#fbfbfd; color:#1f1f1f; outline:none; transition:border-color .15s ease, background .15s ease;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color:var(--accent); background:#fff; }
+  .field textarea{ resize:vertical; min-height:96px; font-family:inherit; }
+  .row-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:520px){ .row-2{ grid-template-columns:1fr; } }
+
+  .submit-btn{
+    margin-top:6px; align-self:flex-start; background:#1d1d1d; color:#fff; border:none; border-radius:8px;
+    padding:13px 26px; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .15s ease, opacity .15s ease;
+  }
+  .submit-btn:hover{ background:#000; }
+  .submit-btn:disabled{ opacity:.6; cursor:default; }
+
+  .confirm{
+    display:none; margin-top:18px; background:#e9f5ec; border:1px solid #bfe3c8; color:#1e7a34;
+    border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5;
+  }
+  .confirm.visible{ display:block; }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="wrap">
+  <p class="eyebrow">OPTIMA</p>
+  <h1>Request a Demo</h1>
+  <p class="sub">Tell us a bit about your organization and we'll follow up to schedule a walkthrough of PERSEVERE, PATHFINDER, and SENTINEL.</p>
+
+  <div class="placeholder-note">
+    <span>&#9888;&#65039;</span>
+    <span><b>Placeholder form.</b> This page isn't wired to a backend yet — submitting shows a confirmation message but doesn't actually send anything.</span>
+  </div>
+
+  <form id="demoForm">
+    <div class="row-2">
+      <div class="field">
+        <label for="fname">Full name</label>
+        <input id="fname" name="fname" type="text" placeholder="Jane Doe" required />
+      </div>
+      <div class="field">
+        <label for="email">Work email</label>
+        <input id="email" name="email" type="email" placeholder="jane@hospital.org" required />
+      </div>
+    </div>
+    <div class="row-2">
+      <div class="field">
+        <label for="org">Organization</label>
+        <input id="org" name="org" type="text" placeholder="Academic Medical Center" />
+      </div>
+      <div class="field">
+        <label for="role">Role</label>
+        <input id="role" name="role" type="text" placeholder="Cardiologist, IT lead, etc." />
+      </div>
+    </div>
+    <div class="field">
+      <label for="msg">What are you hoping to see?</label>
+      <textarea id="msg" name="msg" placeholder="e.g. PATHFINDER surveillance workflow, EHR integration questions..."></textarea>
+    </div>
+    <button class="submit-btn" type="submit">Request Demo</button>
+    <div class="confirm" id="confirmMsg">Thanks — this is a placeholder confirmation. A real submission would be routed to the OPTIMA team here.</div>
+  </form>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="site-chrome.js"></script>
+<script>
+  document.getElementById("demoForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const btn = this.querySelector(".submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Request Sent";
+    document.getElementById("confirmMsg").classList.add("visible");
+  });
+</script>
+</body>
+</html>

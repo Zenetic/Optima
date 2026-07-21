@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Volume & Actions — PATHFINDER</title>
+<link rel="stylesheet" href="site-chrome.css" />
 <style>
   :root{ --accent:#2f8f8a; }
   html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
@@ -47,7 +48,8 @@
   footer{ margin-top:36px; font-size:11.5px; color:#9aa3b2; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
 </style>
 </head>
-<body>
+<body data-demo-popup>
+<div id="site-header"></div>
 <div class="wrap">
   <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
   <p class="eyebrow">PATHFINDER · Volume &amp; Actions</p>
@@ -83,6 +85,8 @@
     Features: patient-personalized, workflow-integrated (triggered when actually needed, not in isolation), immediately actionable, clinically justified. Deployment: FHIR API interoperability, installable on AWS Cloud / other cloud services, HIPAA certified, meets the cybersecurity standards required by Academic Medical Centers.
   </footer>
 </div>
+<div id="site-footer"></div>
+<script src="site-chrome.js"></script>
 
 <script>
 (function(){

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Contact Us — OPTIMA</title>
+<link rel="stylesheet" href="site-chrome.css" />
+<style>
+  :root{ --accent:#1c4d84; }
+  html,body{ margin:0; padding:0; background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1f1f1f; }
+  *,*::before,*::after{ box-sizing:border-box; }
+
+  .wrap{ max-width:880px; margin:0 auto; padding:56px 24px 90px; display:grid; grid-template-columns:1fr 280px; gap:56px; }
+  @media (max-width:720px){ .wrap{ grid-template-columns:1fr; } }
+
+  .eyebrow{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 8px; }
+  h1{ margin:0 0 10px; font-size:32px; letter-spacing:-0.01em; }
+  .sub{ margin:0 0 28px; font-size:15px; color:#5b6474; line-height:1.55; }
+
+  .placeholder-note{
+    display:flex; gap:10px; align-items:flex-start; background:#fff7e6; border:1px solid #f3d99a;
+    border-radius:10px; padding:12px 14px; margin-bottom:28px; font-size:12.5px; color:#8a6412; line-height:1.5;
+  }
+  .placeholder-note b{ color:#6b4a05; }
+
+  form{ display:flex; flex-direction:column; gap:18px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12.5px; font-weight:700; color:#1f1f1f; }
+  .field input, .field textarea{
+    font:inherit; font-size:14px; padding:11px 13px; border-radius:9px; border:1px solid #dde1e8;
+    background:#fbfbfd; color:#1f1f1f; outline:none; transition:border-color .15s ease, background .15s ease;
+  }
+  .field input:focus, .field textarea:focus{ border-color:var(--accent); background:#fff; }
+  .field textarea{ resize:vertical; min-height:110px; font-family:inherit; }
+
+  .submit-btn{
+    margin-top:6px; align-self:flex-start; background:#1d1d1d; color:#fff; border:none; border-radius:8px;
+    padding:13px 26px; font-size:14.5px; font-weight:600; cursor:pointer; transition:background .15s ease, opacity .15s ease;
+  }
+  .submit-btn:hover{ background:#000; }
+  .submit-btn:disabled{ opacity:.6; cursor:default; }
+
+  .confirm{
+    display:none; margin-top:18px; background:#e9f5ec; border:1px solid #bfe3c8; color:#1e7a34;
+    border-radius:10px; padding:12px 14px; font-size:13px; line-height:1.5;
+  }
+  .confirm.visible{ display:block; }
+
+  .side{ padding-top:2px; }
+  .side-block{ margin-bottom:26px; }
+  .side-block h3{ margin:0 0 6px; font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:#8c8c8c; }
+  .side-block a, .side-block p{ margin:0; font-size:14px; color:#1f1f1f; text-decoration:none; }
+  .side-block a:hover{ color:var(--accent); text-decoration:underline; }
+</style>
+</head>
+<body>
+<div id="site-header"></div>
+
+<div class="wrap">
+  <div>
+    <p class="eyebrow">OPTIMA</p>
+    <h1>Contact Us</h1>
+    <p class="sub">Questions about PERSEVERE, PATHFINDER, SENTINEL, or anything else — send a note and we'll get back to you.</p>
+
+    <div class="placeholder-note">
+      <span>&#9888;&#65039;</span>
+      <span><b>Placeholder form.</b> Not wired to a backend yet — submitting shows a confirmation message but doesn't actually send anything.</span>
+    </div>
+
+    <form id="contactForm">
+      <div class="field">
+        <label for="cname">Name</label>
+        <input id="cname" name="cname" type="text" placeholder="Jane Doe" required />
+      </div>
+      <div class="field">
+        <label for="cemail">Email</label>
+        <input id="cemail" name="cemail" type="email" placeholder="jane@hospital.org" required />
+      </div>
+      <div class="field">
+        <label for="cmsg">Message</label>
+        <textarea id="cmsg" name="cmsg" placeholder="How can we help?" required></textarea>
+      </div>
+      <button class="submit-btn" type="submit">Send Message</button>
+      <div class="confirm" id="confirmMsg">Thanks — this is a placeholder confirmation. A real submission would be routed to the OPTIMA team here.</div>
+    </form>
+  </div>
+
+  <div class="side">
+    <div class="side-block">
+      <h3>Email</h3>
+      <a href="mailto:hello@optima.health">hello@optima.health</a>
+    </div>
+    <div class="side-block">
+      <h3>Social</h3>
+      <a href="#" rel="noopener">LinkedIn</a><br/>
+      <a href="#" rel="noopener">X</a>
+    </div>
+    <div class="side-block">
+      <h3>Headquarters</h3>
+      <p>74 Langton Street<br/>San Francisco, CA-94103</p>
+    </div>
+  </div>
+</div>
+
+<div id="site-footer"></div>
+
+<script src="site-chrome.js"></script>
+<script>
+  document.getElementById("contactForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    const btn = this.querySelector(".submit-btn");
+    btn.disabled = true;
+    btn.textContent = "Message Sent";
+    document.getElementById("confirmMsg").classList.add("visible");
+  });
+</script>
+</body>
+</html>

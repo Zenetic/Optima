@@ -3,116 +3,395 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Review a Case — PERSEVERE</title>
+<title>Case Evolution — PERSEVERE</title>
+<link rel="stylesheet" href="site-chrome.css" />
 <style>
-  :root{ --accent:#1c4d84; }
-  html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
-  .wrap{ max-width:880px; margin:0 auto; padding:28px 24px 80px; }
-  .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
-  .back:hover{ color:var(--accent); }
-  .eyebrow{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
-  h1{ margin:0 0 6px; font-size:26px; letter-spacing:-0.01em; }
-  .sub{ margin:0 0 28px; font-size:14px; color:#5b6474; line-height:1.5; max-width:640px; }
-  .placeholder-note{
-    display:flex; gap:10px; align-items:flex-start; background:#fff7e6; border:1px solid #f3d99a;
-    border-radius:10px; padding:12px 14px; margin-bottom:28px; font-size:12.5px; color:#8a6412; line-height:1.5;
-  }
-  .placeholder-note b{ color:#6b4a05; }
+  *, *::before, *::after{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#FFFFFF; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1A1A1F; }
+  button{ font-family:inherit; }
 
-  .patient-card{
-    background:#fff; border-radius:16px; padding:20px 22px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
-    display:flex; flex-wrap:wrap; gap:24px; margin-bottom:28px; border:1px solid #eef1f7;
-  }
-  .patient-field{ min-width:120px; }
-  .patient-field .lbl{ font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:#9aa3b2; margin-bottom:3px; }
-  .patient-field .val{ font-size:14.5px; font-weight:700; color:#0f1b3d; }
+  /* Ported from a Figma Sites React code layer ("Case Evolution Dashboard")
+     into plain HTML/CSS/JS to match this project's other pages — no build
+     step, no React. Data, colors, and animation timings are preserved
+     exactly from the original component. */
 
-  .section-title{ font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#0f1b3d; margin:30px 0 12px; }
+  .ce-page{ background:#FFFFFF; min-height:100vh; padding:24px; }
+  /* Cap the dashboard's width at 1440px and center it — previously it
+     stretched edge-to-edge on wide viewports. Below 1440px it just fills
+     the available width as before; the existing container queries at
+     1100px/560px still handle the board's column collapsing responsively. */
+  .ce-root{ container-type:inline-size; background:#FFFFFF; border-radius:20px; padding:24px; max-width:1440px; margin:0 auto; }
 
-  .rec-card{
-    background:#fff; border-radius:14px; padding:16px 18px; margin-bottom:12px;
-    border:1px solid #eef1f7; box-shadow:0 8px 22px -16px rgba(15,27,61,0.2);
-    display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-  }
-  .rec-main{ flex:1; }
-  .rec-main h3{ margin:0 0 6px; font-size:14.5px; }
-  .rec-main p{ margin:0; font-size:12.5px; color:#5b6474; line-height:1.55; }
-  .badge{
-    flex:none; font-size:11px; font-weight:800; padding:5px 12px; border-radius:999px; white-space:nowrap;
-  }
-  .badge.recommended{ background:#e3f3e6; color:#1e7a34; }
-  .badge.pending{ background:#fff2d9; color:#a6720a; }
-  .badge.not-eligible{ background:#f1f2f5; color:#6b7280; }
+  @keyframes optima-pulse { 0%{box-shadow:0 0 0 0 var(--pc);} 70%{box-shadow:0 0 0 9px transparent;} 100%{box-shadow:0 0 0 0 transparent;} }
+  .optima-pulsing{ animation:optima-pulse 1.4s ease-out infinite; border-radius:50%; }
+  @keyframes optima-dash-flow { to { stroke-dashoffset:-16; } }
+  .optima-arrow-active .flowline{ stroke-dasharray:6 6; animation:optima-dash-flow 0.6s linear infinite; }
+  @keyframes optima-bump { 0%{transform:scale(1);} 40%{transform:scale(1.18);} 100%{transform:scale(1);} }
+  .optima-val-bump{ animation:optima-bump 0.5s ease; }
 
-  footer{ margin-top:40px; font-size:11.5px; color:#9aa3b2; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
+  .ce-board{ display:grid; grid-template-columns:repeat(4, 1fr); gap:18px; margin-bottom:18px; }
+  @container (max-width:1100px) { .ce-board{ grid-template-columns:repeat(2, 1fr); } }
+  @container (max-width:560px)  { .ce-board{ grid-template-columns:1fr; } }
+
+  .ce-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+  .ce-tl{ display:flex; align-items:center; gap:16px; background:#FFF; border:1px solid #E6E8EC; border-radius:14px; padding:14px 18px; margin-bottom:18px; flex-wrap:wrap; }
+  .ce-tl-inner{ display:flex; align-items:center; gap:12px; flex:1; min-width:0; flex-wrap:wrap; }
+  .ce-ms{ display:flex; align-items:center; gap:14px 20px; flex-wrap:wrap; justify-content:space-between; background:#FFF; border:1px solid #E6E8EC; border-radius:14px; padding:16px 20px; }
+
+  .back-arrow{ cursor:pointer; margin-top:4px; }
+  .tl-stage, .ce-card{ cursor:pointer; }
 </style>
 </head>
-<body>
-<div class="wrap">
-  <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
-  <p class="eyebrow">PERSEVERE · Review a Case</p>
-  <h1>Case Review</h1>
-  <p class="sub">A single-patient view across the five PERSEVERE treatment-optimization categories, so a clinician can review — and act on — every open recommendation for one patient in one place.</p>
-
-  <div class="placeholder-note">
-    <span>&#9888;&#65039;</span>
-    <span><b>Placeholder content.</b> This page is a layout reference for the Review a Case flow. Patient details, recommendation text, and statuses below are sample data, not a real case.</span>
-  </div>
-
-  <div class="patient-card">
-    <div class="patient-field"><div class="lbl">Patient</div><div class="val">Sample Patient</div></div>
-    <div class="patient-field"><div class="lbl">MRN</div><div class="val">000-00-0000</div></div>
-    <div class="patient-field"><div class="lbl">Age / Sex</div><div class="val">68 / F</div></div>
-    <div class="patient-field"><div class="lbl">EF (last known)</div><div class="val">28%</div></div>
-    <div class="patient-field"><div class="lbl">HF Etiology</div><div class="val">Non-ischemic</div></div>
-    <div class="patient-field"><div class="lbl">Data as of</div><div class="val">Most recent pull</div></div>
-  </div>
-
-  <div class="section-title">Open Recommendations</div>
-
-  <div class="rec-card">
-    <div class="rec-main">
-      <h3>Evidence-Based Medication</h3>
-      <p>GDMT optimization opportunity identified — candidate for dose increase on current beta-blocker; SGLT2i not yet initiated.</p>
-    </div>
-    <span class="badge recommended">Recommended</span>
-  </div>
-
-  <div class="rec-card">
-    <div class="rec-main">
-      <h3>Device Eligibility</h3>
-      <p>Meets criteria for CRT-D evaluation based on QRS duration and EF; awaiting cardiology referral confirmation.</p>
-    </div>
-    <span class="badge pending">Pending review</span>
-  </div>
-
-  <div class="rec-card">
-    <div class="rec-main">
-      <h3>Procedure Eligibility</h3>
-      <p>No severe AS, TR, or MR identified on most recent echo — structural heart referral not indicated at this time.</p>
-    </div>
-    <span class="badge not-eligible">Not eligible</span>
-  </div>
-
-  <div class="rec-card">
-    <div class="rec-main">
-      <h3>Advanced Heart Failure Therapies</h3>
-      <p>No current indicators for LVAD or transplant evaluation based on latest functional status and hemodynamics.</p>
-    </div>
-    <span class="badge not-eligible">Not eligible</span>
-  </div>
-
-  <div class="rec-card">
-    <div class="rec-main">
-      <h3>Clinical Trial Enrollment</h3>
-      <p>Meets general HF eligibility criteria; matched to one actively enrolling trial pending confirmation of exclusion criteria.</p>
-    </div>
-    <span class="badge recommended">Recommended</span>
-  </div>
-
-  <footer>
-    Features: patient-personalized, workflow-integrated (triggered when actually needed, not in isolation), immediately actionable, clinically justified. Deployment: FHIR API interoperability, installable on AWS Cloud / other cloud services, HIPAA certified, meets the cybersecurity standards required by Academic Medical Centers.
-  </footer>
+<body data-demo-popup>
+<div id="site-header"></div>
+<div class="ce-page">
+  <div id="ceRoot" class="ce-root"></div>
 </div>
+<div id="site-footer"></div>
+<script src="site-chrome.js"></script>
+
+<script>
+  const CO = {
+    orange: "#E8833A", yellow: "#D9A821", green: "#3FA55C", red: "#D9483B",
+    faint: "#9AA0AC", blue: "#2456C4", navy: "#16294F", text: "#1A1A1F",
+    sub: "#5A5F6B", border: "#E6E8EC",
+    bgO: "#FDF1E7", bgY: "#FBF6E3", bgG: "#E9F5EC", bgR: "#FCEAE8", bgB: "#EBF1FC",
+  };
+  const RGBA = {
+    [CO.green]: "rgba(63,165,92,0.45)", [CO.red]: "rgba(217,72,59,0.45)",
+    [CO.blue]: "rgba(36,86,196,0.45)", [CO.orange]: "rgba(232,131,58,0.45)",
+  };
+
+  function iconSVG(kind, size){
+    size = size || 18;
+    const P = {
+      person: '<circle cx="0" cy="-3.5" r="3.2" fill="white"/><path d="M-6 7 a6 5 0 0 1 12 0 Z" fill="white"/>',
+      bars:   '<rect x="-6" y="0" width="3" height="6" fill="white"/><rect x="-1.5" y="-3" width="3" height="9" fill="white"/><rect x="3" y="-7" width="3" height="13" fill="white"/>',
+      check:  '<path d="M-5 0 L-1.5 3.8 L5 -4" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+      heart:  '<path d="M0 5.5 C-6 1 -6 -4.5 -2.5 -4.5 C-0.9 -4.5 0 -3 0 -3 C0 -3 0.9 -4.5 2.5 -4.5 C6 -4.5 6 1 0 5.5 Z" fill="white"/>',
+      diag:   '<rect x="-5" y="-7" width="10" height="14" rx="2" stroke="white" stroke-width="1.7" fill="none"/><path d="M-2 0 h4 M0 -2 v4" stroke="white" stroke-width="1.7" stroke-linecap="round"/>',
+      shield: '<path d="M0 -7 L6 -4.5 v4.5 c0 3.5 -2.6 6 -6 7.2 C-3.4 6 -6 3.5 -6 0 v-4.5 Z" stroke="white" stroke-width="1.7" fill="none" stroke-linejoin="round"/>',
+      device: '<rect x="-5" y="-7" width="10" height="14" rx="2" stroke="white" stroke-width="1.7" fill="none"/><path d="M-2.5 0 h1.2 l0.8 -2 l1.2 4 l0.8 -2 h1.2" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+      hosp:   '<rect x="-6" y="-6" width="12" height="12" rx="2" stroke="white" stroke-width="1.7" fill="none"/><path d="M-2 0 h4 M0 -2 v4" stroke="white" stroke-width="1.7" stroke-linecap="round"/>',
+    };
+    return `<svg width="${size}" height="${size}" viewBox="-10 -10 20 20">${P[kind]}</svg>`;
+  }
+  function arrowSVG(dir){
+    const d = dir === "up" ? "M5 1 L5 9 M5 1 L2 4 M5 1 L8 4" : "M5 9 L5 1 M5 9 L2 6 M5 9 L8 6";
+    return `<svg width="9" height="9" viewBox="0 0 10 10" style="flex:0 0 auto"><path d="${d}" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
+  }
+  function backArrowSVG(){
+    // lucide-react's ArrowLeft isn't available outside React — same glyph, drawn by hand.
+    return `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${CO.navy}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+  }
+
+  const n   = v => String(Math.round(v));
+  const pct = v => Math.round(v) + "%";
+  const msf = v => Math.round(v) + " ms";
+  const bnp = v => Math.round(v).toLocaleString() + " pg/mL";
+
+  const stages = [
+    { time: "T = 0", sub: "Initial Presentation", color: CO.orange, bg: CO.bgO, icon: "person",
+      status: "Symptomatic with volume overload. HF-rEF diagnosis established.",
+      keyLabel: "KEY MEASUREMENTS", keyVs: "",
+      metrics: [
+        { name: "KCCQ", from: null, to: 30, fmt: n }, { name: "EF", from: null, to: 30, fmt: pct },
+        { name: "QRS", from: null, to: 150, fmt: msf }, { name: "NT-proBNP", from: null, to: 4000, fmt: bnp },
+      ],
+      cats: [["Signs & Symptoms", "Dyspnea, volume overload", CO.orange], ["Comorbidities", "Hypertension, diabetes, CKD (stage TBD)", CO.orange], ["Medications", "Antihypertensives, antidiabetics", CO.orange]],
+      rec: "Correct inappropriate medications for a new HF-rEF diagnosis: switch to a cardioprotective beta-blocker, introduce an SGLT2 inhibitor, and manage fluid overload with diuretics.",
+      priority: ["Priority: High", CO.bgB, CO.blue] },
+    { time: "T = 6 months", sub: "GDMT 75%", color: CO.yellow, bg: CO.bgY, icon: "bars",
+      status: "Improvement in symptoms and cardiac function.",
+      keyLabel: "KEY CHANGES", keyVs: "(vs. T = 0)",
+      metrics: [
+        { name: "KCCQ", from: 30, to: 45, fmt: n, dir: "up", deltaText: "+15", good: true },
+        { name: "EF", from: 30, to: 30, fmt: pct, flat: true },
+        { name: "QRS", from: 150, to: 150, fmt: msf, flat: true },
+        { name: "NT-proBNP", from: 4000, to: 1800, fmt: bnp, dir: "down", deltaText: "-55%", good: true },
+      ],
+      cats: [["Signs & Symptoms", "Improved", CO.green], ["Investigations", "—", CO.faint], ["Medications", "GDMT on the way to target (currently 75%)", CO.yellow]],
+      rec: "Refer to electrophysiology and assess device candidacy for the patient.",
+      priority: ["Priority: Medium", CO.bgY, "#A8820F"] },
+    { time: "T = 12 months", sub: "Optimized GDMT", color: CO.green, bg: CO.bgG, icon: "check",
+      status: "Clinical improvement continues. Severe MR persists.",
+      keyLabel: "KEY CHANGES", keyVs: "(vs. T = 6 months)",
+      metrics: [
+        { name: "KCCQ", from: 45, to: 70, fmt: n, dir: "up", deltaText: "+25", good: true },
+        { name: "EF", from: 30, to: 35, fmt: pct, dir: "up", deltaText: "+5%", good: true },
+        { name: "QRS", from: 150, to: 150, fmt: msf, flat: true },
+        { name: "CRT-D", from: null, to: "Implanted", badge: "NEW" },
+        { name: "ECHO (MR)", from: null, to: "Severe mitral regurgitation", warn: true },
+      ],
+      cats: [["Signs & Symptoms", "Improved vs. prior visit", CO.green], ["Investigations", "CRT-D implanted, EF 35% (from 30%), severe MR", CO.orange], ["Medications", "GDMT optimized (target dose)", CO.green]],
+      rec: "Despite overall improvement, severe MR persists. Refer for an MR procedure (e.g. TEER).",
+      priority: ["Priority: High", CO.bgR, CO.red] },
+    { time: "T = 24 months", sub: "Decompensation", color: CO.red, bg: CO.bgR, icon: "heart",
+      status: "Clinical deterioration with hemodynamic compromise.",
+      keyLabel: "KEY CHANGES", keyVs: "(vs. T = 12 months)",
+      metrics: [
+        { name: "KCCQ", from: 70, to: 30, fmt: n, dir: "down", deltaText: "-40", good: false },
+        { name: "EF", from: 35, to: 25, fmt: pct, dir: "down", deltaText: "-10%", good: false },
+        { name: "NT-proBNP", from: 1800, to: 6200, fmt: bnp, dir: "up", deltaText: "+244%", good: false },
+      ],
+      cats: [["Vital Signs", "SBP 90 mmHg, HR 110 bpm", CO.red], ["Laboratory Values", "eGFR 30 mL/min, K 5.2 mEq/L", CO.red], ["Medications", "On optimized GDMT", CO.yellow]],
+      rec: 'Decrease GDMT per the PERSEVERE algorithm. Patient hospitalized twice and meets 2 to 3 "I-NEED-HELP" criteria, a candidate for LVAD or heart transplant evaluation.',
+      priority: ["Priority: Critical", CO.bgR, CO.red] },
+  ];
+  const milestones = [
+    ["Diagnosis", "HF-rEF", CO.orange, "diag", 0],
+    ["GDMT Initiated", "Medication optimization", CO.yellow, "shield", 0],
+    ["GDMT 75%", "Partial improvement", CO.yellow, "bars", 1],
+    ["CRT-D Implanted", "Device therapy", CO.green, "device", 2],
+    ["Persistent Severe MR", "Intervention needed", CO.orange, "heart", 2],
+    ["Decompensation", "Advanced therapies", CO.red, "hosp", 3],
+  ];
+
+  function changedOf(m){ return Boolean(m.dir || m.badge || m.warn); }
+  function dotColorOf(m){ return changedOf(m) ? (m.badge ? CO.blue : m.warn ? CO.orange : m.good ? CO.green : CO.red) : CO.faint; }
+  function easeOut(t){ return 1 - Math.pow(1 - t, 3); }
+
+  let active = 0;
+  let animVals = {};
+  let bumpKeys = new Set();
+  let chipsVisible = true;
+  let rafId = null;
+  let chipTimer = null;
+
+  const root = document.getElementById("ceRoot");
+  const grayStyle = on => on ? "filter:none;opacity:1;" : "filter:grayscale(1);opacity:0.4;";
+
+  function renderHeader(){
+    return `
+      <div class="ce-header">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <span class="back-arrow" id="backBtn">${backArrowSVG()}</span>
+          <div>
+            <p style="font-size:26px;font-weight:700;color:${CO.navy};margin:0 0 4px;">Patient Case Evolution</p>
+            <p style="font-size:15px;font-weight:600;color:${CO.blue};margin:0;">HF-rEF Patient Journey</p>
+          </div>
+        </div>
+        <div style="background:#FFF;border:1px solid ${CO.border};border-radius:12px;padding:12px 16px;">
+          <div style="display:flex;gap:24px;margin-bottom:8px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.green};"></span>Stable / Improved</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.yellow};"></span>Monitor</span>
+          </div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.orange};"></span>Action Required</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.red};"></span>Critical</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTimeline(){
+    const items = stages.map((s, i) => {
+      const on = i <= active;
+      let html = `
+        <button class="tl-stage" data-i="${i}" style="display:flex;align-items:center;gap:10px;border:none;background:none;padding:0;transition:filter .6s ease, opacity .6s ease;${grayStyle(on)}">
+          <span style="width:40px;height:40px;border-radius:50%;flex:0 0 40px;display:flex;align-items:center;justify-content:center;background:${s.color};transform:${i===active ? "scale(1.12)" : "scale(1)"};transition:transform .4s cubic-bezier(.22,1,.36,1);">${iconSVG(s.icon)}</span>
+          <span style="text-align:left;">
+            <span style="display:block;font-size:14px;font-weight:700;color:${CO.text};white-space:nowrap;">${s.time}</span>
+            <span style="display:block;font-size:12px;color:${CO.sub};white-space:nowrap;">${s.sub}</span>
+          </span>
+        </button>`;
+      if(i < stages.length - 1){
+        const reached = i < active;
+        const flowing = i === active - 1;
+        const col = reached ? CO.blue : "#C3C9D4";
+        html += `
+          <span class="${flowing ? "optima-arrow-active" : ""}" style="flex:1;min-width:40px;text-align:center;">
+            <svg width="90" height="12" viewBox="0 0 90 12" style="width:100%;max-width:90px;">
+              <line x1="2" y1="6" x2="78" y2="6" stroke="#E0E4EA" stroke-width="2"/>
+              <line class="flowline" x1="2" y1="6" x2="78" y2="6" stroke="${col}" stroke-width="2"/>
+              <path d="M78 1 L87 6 L78 11 Z" fill="${col}"/>
+            </svg>
+          </span>`;
+      }
+      return html;
+    }).join("");
+
+    return `
+      <div class="ce-tl-inner">${items}</div>
+      <div style="display:flex;gap:8px;flex:0 0 auto;">
+        <button id="prevBtn" style="font-size:13px;padding:9px 18px;border-radius:10px;cursor:pointer;border:1px solid ${CO.border};white-space:nowrap;background:#FFF;color:${CO.sub};font-weight:400;visibility:${active===0 ? "hidden" : "visible"};">&larr; Prev</button>
+        <button id="nextBtn" style="font-size:13px;padding:9px 18px;border-radius:10px;cursor:pointer;border:1px solid ${CO.border};white-space:nowrap;background:#171717;color:#FFF;font-weight:600;visibility:${active===stages.length-1 ? "hidden" : "visible"};">Next &rarr;</button>
+      </div>
+    `;
+  }
+
+  function metricRowHTML(i, mi, m){
+    const dc = dotColorOf(m);
+    const key = i + "-" + mi;
+    const shownVal = typeof m.to === "number" ? m.fmt(key in animVals ? animVals[key] : m.to) : m.to;
+    const pulsing = changedOf(m) && i === active;
+    const chipHidden = i === active && !chipsVisible && Boolean(m.dir);
+    const deltaColor = m.good ? CO.green : CO.red;
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:7px 10px;border-radius:8px;background:#FAFBFC;font-size:12px;">
+        <span style="display:flex;align-items:flex-start;gap:8px;min-width:0;">
+          <span class="${pulsing ? "optima-pulsing" : ""}" style="width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:${dc};margin-top:4px;--pc:${RGBA[dc] || "rgba(154,160,172,0.4)"};"></span>
+          <span style="font-weight:600;color:${CO.text};">
+            ${m.name}
+            ${m.badge ? `<span style="font-size:9px;background:${CO.blue};color:#FFF;padding:1px 5px;border-radius:4px;margin-left:4px;">${m.badge}</span>` : ""}
+            ${m.warn ? `<span style="color:${CO.red};margin-left:4px;">!</span>` : ""}
+          </span>
+        </span>
+        <span style="display:flex;gap:8px;align-items:center;flex:0 0 auto;">
+          <span id="val-${key}" class="${bumpKeys.has(key) ? "optima-val-bump" : ""}" style="color:${CO.sub};font-variant-numeric:tabular-nums;display:inline-block;">${shownVal}</span>
+          ${m.dir ? `<span id="chip-${key}" style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:6px;background:${m.good ? CO.bgG : CO.bgR};color:${deltaColor};opacity:${chipHidden ? 0 : 1};transition:opacity .3s;">${arrowSVG(m.dir)}${m.deltaText}</span>` : ""}
+          ${m.flat ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:#EFF1F4;color:${CO.faint};">&mdash;</span>` : ""}
+        </span>
+      </div>
+    `;
+  }
+
+  function renderBoard(){
+    return stages.map((s, i) => {
+      const on = i <= active;
+      const metricsHTML = s.metrics.map((m, mi) => metricRowHTML(i, mi, m)).join("");
+      const catsHTML = s.cats.map(([name, value, c]) => `
+        <div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;border:1px solid ${CO.border};font-size:12px;align-items:flex-start;">
+          <span style="display:flex;align-items:flex-start;gap:8px;min-width:0;">
+            <span style="width:8px;height:8px;border-radius:50%;flex:0 0 8px;background:${c};margin-top:4px;"></span>
+            <span style="font-weight:600;color:${CO.text};">${name}</span>
+          </span>
+          <span style="color:${CO.sub};text-align:right;">${value}</span>
+        </div>
+      `).join("");
+      return `
+        <div class="ce-card" data-i="${i}" style="min-width:0;background:#FFF;border:1px solid ${CO.border};border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;transform:${i===active ? "translateY(-6px)" : "translateY(0)"};box-shadow:${i===active ? "0 10px 30px rgba(22,41,79,0.12)" : "none"};transition:filter .6s ease, opacity .6s ease, transform .6s cubic-bezier(.22,1,.36,1), box-shadow .6s ease;${grayStyle(on)}">
+          <div style="display:flex;gap:12px;align-items:flex-start;background:${s.bg};border-radius:10px;padding:12px 14px;">
+            <span style="width:34px;height:34px;border-radius:50%;flex:0 0 34px;display:flex;align-items:center;justify-content:center;background:${s.color};">${iconSVG(s.icon)}</span>
+            <span>
+              <span style="display:block;font-size:12px;font-weight:600;color:${CO.text};">Clinical Status</span>
+              <span style="display:block;font-size:12px;color:${CO.sub};line-height:1.5;">${s.status}</span>
+            </span>
+          </div>
+          <p style="font-size:11px;font-weight:600;margin:0;color:${CO.text};">${s.keyLabel} <span style="font-weight:400;color:${s.color};">${s.keyVs}</span></p>
+          ${metricsHTML}
+          <div style="height:1px;background:${CO.border};"></div>
+          ${catsHTML}
+          <div style="background:${CO.bgB};border-radius:10px;padding:14px;margin-top:auto;">
+            <p style="font-size:11px;font-weight:600;color:${CO.blue};margin:0 0 6px;">💡 OPTIMA RECOMMENDATION</p>
+            <p style="font-size:12px;color:#26385E;margin:0 0 8px;line-height:1.6;">${s.rec}</p>
+            <span style="display:inline-block;font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;background:${s.priority[1]};color:${s.priority[2]};">${s.priority[0]}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderMilestones(){
+    const items = milestones.map((m, i) => {
+      const on = m[4] <= active;
+      let html = `
+        <span style="display:flex;align-items:center;gap:8px;transform:${on ? "translateY(0)" : "translateY(4px)"};transition:filter .5s ease, opacity .5s ease, transform .5s cubic-bezier(.22,1,.36,1);transition-delay:${on ? i*0.06 : 0}s;${grayStyle(on)}">
+          <span style="width:34px;height:34px;border-radius:10px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;background:${m[2]};">${iconSVG(m[3], 16)}</span>
+          <span>
+            <span style="display:block;font-size:12px;font-weight:600;color:${CO.text};">${m[0]}</span>
+            <span style="display:block;font-size:11px;color:${CO.sub};">${m[1]}</span>
+          </span>
+        </span>`;
+      if(i < milestones.length - 1) html += `<span style="font-size:16px;color:#C3C9D4;">&rsaquo;</span>`;
+      return html;
+    }).join("");
+
+    return `
+      <span style="display:flex;align-items:center;gap:14px;">
+        <span style="font-size:13px;font-weight:700;color:${CO.blue};line-height:1.3;">JOURNEY<br/>MILESTONES</span>
+        <span style="width:1px;height:44px;background:${CO.border};"></span>
+      </span>
+      ${items}
+    `;
+  }
+
+  function renderAll(){
+    root.innerHTML = `
+      ${renderHeader()}
+      <div class="ce-tl" id="ceTl">${renderTimeline()}</div>
+      <div class="ce-board" id="ceBoard">${renderBoard()}</div>
+      <div class="ce-ms" id="ceMs">${renderMilestones()}</div>
+    `;
+    bindEvents();
+  }
+
+  function bindEvents(){
+    const backBtn = document.getElementById("backBtn");
+    if(backBtn) backBtn.addEventListener("click", () => {
+      // Prefer real browser history (matches the original code layer's
+      // behavior); fall back to the heart page if opened in a fresh tab.
+      if(window.history.length > 1) window.history.back();
+      else window.location.href = "lego-heart-split.html";
+    });
+    document.querySelectorAll(".tl-stage").forEach(btn => {
+      btn.addEventListener("click", () => goTo(parseInt(btn.dataset.i, 10)));
+    });
+    document.querySelectorAll(".ce-card").forEach(card => {
+      card.addEventListener("click", () => goTo(parseInt(card.dataset.i, 10)));
+    });
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    if(prevBtn) prevBtn.addEventListener("click", () => { if(active > 0) goTo(active - 1); });
+    if(nextBtn) nextBtn.addEventListener("click", () => { if(active < stages.length - 1) goTo(active + 1); });
+  }
+
+  function goTo(i){
+    const forward = i > active;
+    active = i;
+    if(rafId) cancelAnimationFrame(rafId);
+    if(chipTimer) clearTimeout(chipTimer);
+    bumpKeys = new Set();
+
+    if(forward && i > 0){
+      const targets = stages[i].metrics
+        .map((m, mi) => ({ m, mi }))
+        .filter(({ m }) => typeof m.to === "number" && m.from !== null && m.from !== m.to);
+      if(targets.length){
+        chipsVisible = false;
+        animVals = {};
+        targets.forEach(({ m, mi }) => { animVals[i + "-" + mi] = m.from; }); // start-of-tween paint
+        renderAll();
+        const start = performance.now();
+        const DUR = 900;
+        const tick = (now) => {
+          const p = Math.min((now - start) / DUR, 1);
+          const e = easeOut(p);
+          targets.forEach(({ m, mi }) => {
+            const key = i + "-" + mi;
+            animVals[key] = m.from + (m.to - m.from) * e;
+            const el = document.getElementById("val-" + key);
+            if(el) el.textContent = m.fmt(animVals[key]);
+          });
+          if(p < 1){
+            rafId = requestAnimationFrame(tick);
+          } else {
+            targets.forEach(({ mi }) => {
+              const key = i + "-" + mi;
+              const el = document.getElementById("val-" + key);
+              if(el){ el.classList.remove("optima-val-bump"); void el.offsetWidth; el.classList.add("optima-val-bump"); }
+            });
+          }
+        };
+        rafId = requestAnimationFrame(tick);
+        chipTimer = setTimeout(() => {
+          chipsVisible = true;
+          targets.forEach(({ mi }) => {
+            const key = i + "-" + mi;
+            const chip = document.getElementById("chip-" + key);
+            if(chip) chip.style.opacity = "1";
+          });
+        }, 950);
+        return;
+      }
+    }
+    animVals = {};
+    chipsVisible = true;
+    renderAll();
+  }
+
+  renderAll();
+</script>
 </body>
 </html>
