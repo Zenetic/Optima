@@ -51,8 +51,13 @@
   /* Cap the dashboard's width at 1440px and center it — previously it
      stretched edge-to-edge on wide viewports. Below 1440px it just fills
      the available width as before; the existing container queries at
-     1100px/560px still handle the board's column collapsing responsively. */
-  .ce-root{ container-type:inline-size; background:#FFFFFF; border-radius:20px; padding:24px; max-width:1440px; margin:0 auto; }
+     1100px/560px still handle the board's column collapsing responsively.
+     No outer white card here anymore — background/border-radius/all-around
+     padding removed (the individual timeline/board/milestone pieces already
+     have their own white backgrounds). Horizontal padding is 24px only,
+     matching .cap-header exactly, so the dashboard content lines up flush
+     with the title/tabs above it instead of being inset an extra 24px. */
+  .ce-root{ container-type:inline-size; max-width:1440px; margin:0 auto; padding:0 24px; }
 
   @keyframes optima-pulse { 0%{box-shadow:0 0 0 0 var(--pc);} 70%{box-shadow:0 0 0 9px transparent;} 100%{box-shadow:0 0 0 0 transparent;} }
   .optima-pulsing{ animation:optima-pulse 1.4s ease-out infinite; border-radius:50%; }

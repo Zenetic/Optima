@@ -9,6 +9,14 @@
 .sc-header, .sc-footer{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; }
 .sc-header *, .sc-footer *{ box-sizing:border-box; }
 
+/* Reserves the vertical scrollbar's width on every page, whether or not
+   that page's content is actually tall enough to scroll. Without this, the
+   three capability pages (which have different content heights) each get a
+   slightly different usable viewport width — the ones without a scrollbar
+   render ~15px wider than the one with a scrollbar — so centered, max-width
+   content shifts a few pixels sideways every time you switch tabs. */
+html{ scrollbar-gutter:stable; }
+
 /* ---------- Capability page tabs ----------
    Shared across reviewacase.html/pathfinder-radar.html/sentinel.html —
    replaces each page's old single-word eyebrow ("PERSEVERE", "SENTINEL",
