@@ -8,7 +8,7 @@
 <style>
   :root{ --accent:#1c4d84; }
   *, *::before, *::after{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; background:#FFFFFF; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1A1A1F; }
+  html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#1A1A1F; }
   button{ font-family:inherit; }
 
   /* Ported from a Figma Sites React code layer ("Case Evolution Dashboard")
@@ -23,8 +23,12 @@
   /* Now a flex row so the legend (right side) can be bottom-aligned with the
      description text (left side) via align-items:flex-end, instead of the
      legend floating separately below with a mismatched gap. */
+  /* Top padding (20px) now matches pathfinder-radar.html/sentinel.html's
+     .wrap exactly — it was 8px here, 28px there, so the tab row visibly
+     jumped by 20px when switching between this page and the other two.
+     Bottom padding trimmed to tighten the gap before the dashboard card. */
   .cap-header{
-    max-width:1440px; margin:0 auto; padding:8px 24px 20px;
+    max-width:1440px; margin:0 auto; padding:20px 24px 12px;
     display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap;
   }
   .cap-header-text{ flex:1; min-width:280px; }
@@ -35,10 +39,15 @@
   /* No bottom margin here — this is the last child of .cap-header-text, and
      align-items:flex-end aligns flex-item box edges, so any trailing margin
      would show up as a gap between the visible text and the legend's
-     bottom edge instead of true alignment. */
-  .sub{ margin:0; font-size:14px; color:#5b6474; line-height:1.5; max-width:680px; }
+     bottom edge instead of true alignment. white-space:nowrap + a wider
+     max-width keep it on one line instead of wrapping to two. */
+  .sub{ margin:0; font-size:14px; color:#5b6474; line-height:1.5; max-width:960px; white-space:nowrap; }
 
-  .ce-page{ background:#FFFFFF; min-height:100vh; padding:0 24px 24px; }
+  /* Horizontal padding removed here (was 24px, doubling up with .ce-root's
+     own 24px padding below it and, at narrower viewports, throwing off the
+     width match with .cap-header/pathfinder-radar.html/sentinel.html's
+     .wrap). .ce-root's own padding + max-width now does that job alone. */
+  .ce-page{ background:#f5f7fb; min-height:100vh; padding:0 0 24px; }
   /* Cap the dashboard's width at 1440px and center it — previously it
      stretched edge-to-edge on wide viewports. Below 1440px it just fills
      the available width as before; the existing container queries at
@@ -208,16 +217,14 @@
   function renderLegend(){
     const el = document.getElementById("ceLegend");
     if(!el) return;
+    // One row, not two — nowrap so it stays a single line rather than
+    // wrapping under narrower widths.
     el.innerHTML = `
-      <div style="background:#FFF;border:1px solid ${CO.border};border-radius:12px;padding:12px 16px;">
-        <div style="display:flex;gap:24px;margin-bottom:8px;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.green};"></span>Stable / Improved</span>
-          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.yellow};"></span>Monitor</span>
-        </div>
-        <div style="display:flex;gap:24px;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.orange};"></span>Action Required</span>
-          <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.red};"></span>Critical</span>
-        </div>
+      <div style="background:#FFF;border:1px solid ${CO.border};border-radius:12px;padding:12px 16px;display:flex;gap:20px;flex-wrap:nowrap;white-space:nowrap;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.green};flex:none;"></span>Stable / Improved</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.yellow};flex:none;"></span>Monitor</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.orange};flex:none;"></span>Action Required</span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:${CO.text};"><span style="width:9px;height:9px;border-radius:50%;background:${CO.red};flex:none;"></span>Critical</span>
       </div>
     `;
   }
