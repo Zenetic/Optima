@@ -448,25 +448,24 @@
     const base = new THREE.Color(baseHex);
     const hsl = {};
     base.getHSL(hsl);
-    // Widened to match the reference heart image, which shows a much wider
-    // light-to-dark spread — near-frost-pale blue down through mid blue to
-    // deep navy — than the previous version allowed (that one compressed
-    // and clamped every brick's final lightness to a 0.05–0.34 ceiling, so
-    // nothing ever rendered lighter than a fairly dark mid-tone). The center
-    // and spread are now shared across all three groups (rather than each
-    // group centering on its OWN darker/lighter base hue) so PERSEVERE/
-    // PATHFINDER/SENTINEL draw from the same wide tonal range and read as
-    // one continuous gradient, matching the reference photo, instead of
-    // three separately-clamped brightness bands. Saturation now eases DOWN
-    // (not up) for the lighter shades, since pale colors read as softer/
-    // frostier when slightly less saturated, and richer/deeper when darker.
-    const LIGHTNESS_CENTER = 0.46;
-    const LIGHTNESS_SPREAD = 0.22;
+    // Matched to the reference heart image: a moderate light-to-dark blue
+    // spread (deep navy shadow bricks up through medium blue to a softer
+    // light blue — NOT pale/near-white anywhere) rather than either the
+    // original 0.05–0.34 ceiling (too dark/flat) or a first widening attempt
+    // that pushed the ceiling up to 0.82 (read as too bright/washed out,
+    // especially since the groups have DIFFERENT module counts — PERSEVERE
+    // has 4, PATHFINDER and SENTINEL have 2 — so with a fixed per-step
+    // increment the 4-module group's outer shades reached much further
+    // toward the extremes than the 2-module groups' did). `t` is now
+    // normalized to the same -1..1 range regardless of a group's module
+    // count, so every group spans the SAME lightness range consistently.
+    const LIGHTNESS_CENTER = 0.39;
+    const LIGHTNESS_SPREAD = 0.21;
     const palette = [];
     for(let i=0;i<count;i++){
-      const t = count > 1 ? i - (count-1)/2 : 0;
-      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.16, 0.82);
-      const saturation = THREE.MathUtils.clamp(hsl.s - t*0.06, 0.3, 0.72);
+      const t = count > 1 ? (i - (count-1)/2) / ((count-1)/2) : 0; // normalized to -1..1
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.15, 0.62);
+      const saturation = THREE.MathUtils.clamp(hsl.s - t*0.06, 0.3, 0.7);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
@@ -814,11 +813,17 @@
   const DEFAULT_BOX_RAW = fullSplitBox(); // worst-case framing: fully split apart (unbiased), used while split/splitting/reassembling
   const ASSEMBLED_BOX_RAW = assembledBox(); // tight framing for the closed heart specifically (unbiased)
 
-  // Margin around the fitted box, per framing mode. 1.12 is snug but not
-  // cropped — proven out for the split/focused views; reused for the
-  // assembled view too since it reads the same way there.
+  // Margin around the fitted box, per framing mode. Larger padding = a
+  // smaller-looking heart (more surrounding space in the same frustum).
+  // ASSEMBLED_PADDING stays snug (1.12) — the closed heart wasn't the
+  // complaint. SPLIT_PADDING is bumped up from that same 1.12 to shrink the
+  // expanded/split layout specifically: the 3-group spread is simply wider
+  // than the closed heart, and the title-clearing bias above can only
+  // reposition it, not shrink it — if the box itself is too tall to fit
+  // between the title and the footer, no amount of repositioning avoids an
+  // overlap. Actually reducing the on-screen size gives it real room.
   const ASSEMBLED_PADDING = 1.12;
-  const SPLIT_PADDING = 1.12;
+  const SPLIT_PADDING = 1.4;
 
   // Both the closed (assembled) and expanded (split) framings get their
   // camera target biased upward — by however many world units are actually
@@ -972,7 +977,10 @@
     hoveredFeatureIdx = null;
     closeFeaturePopup();
     teardownBlurLayer();
-    currentPadding = 1.12;
+    // Was a hardcoded 1.12 (matching the OLD SPLIT_PADDING by coincidence) —
+    // referencing the constant directly means un-focusing back to the split
+    // view can't drift out of sync with it again.
+    currentPadding = SPLIT_PADDING;
     currentFitBox = DEFAULT_BOX;
     startCameraTween(DEFAULT_BOX, currentPadding, FOCUS_DURATION, () => {
       appState = "split";
