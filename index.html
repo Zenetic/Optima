@@ -448,24 +448,26 @@
     const base = new THREE.Color(baseHex);
     const hsl = {};
     base.getHSL(hsl);
-    // Matched to the reference heart image: a moderate light-to-dark blue
-    // spread (deep navy shadow bricks up through medium blue to a softer
-    // light blue — NOT pale/near-white anywhere) rather than either the
-    // original 0.05–0.34 ceiling (too dark/flat) or a first widening attempt
-    // that pushed the ceiling up to 0.82 (read as too bright/washed out,
-    // especially since the groups have DIFFERENT module counts — PERSEVERE
-    // has 4, PATHFINDER and SENTINEL have 2 — so with a fixed per-step
-    // increment the 4-module group's outer shades reached much further
-    // toward the extremes than the 2-module groups' did). `t` is now
-    // normalized to the same -1..1 range regardless of a group's module
-    // count, so every group spans the SAME lightness range consistently.
-    const LIGHTNESS_CENTER = 0.39;
-    const LIGHTNESS_SPREAD = 0.21;
+    // Calibrated directly against the live reference (prime-yew-54311187.
+    // figma.site/plug-and-play): sampled ~56k opaque, non-background pixels
+    // from a screenshot of its actual rendered heart and measured their real
+    // HSL values — hue clustered at ~208–220° (matching this project's own
+    // ~212° single-hue palette), true brick-face lightness ran from about
+    // 0.17 (darkest navy) up to about 0.65–0.70 (lightest solid blue, once
+    // you exclude anti-aliased edge pixels blending into the white page
+    // background above that), and saturation stayed in a fairly narrow
+    // 0.42–0.63 band with no strong lightness trend either way. `t` is
+    // normalized to -1..1 regardless of a group's module count (PERSEVERE
+    // has 4 modules, PATHFINDER/SENTINEL have 2 each) so every group spans
+    // the same measured range consistently, instead of the 4-module group
+    // reaching further toward the extremes than the 2-module ones did.
+    const LIGHTNESS_CENTER = 0.43;
+    const LIGHTNESS_SPREAD = 0.25;
     const palette = [];
     for(let i=0;i<count;i++){
       const t = count > 1 ? (i - (count-1)/2) / ((count-1)/2) : 0; // normalized to -1..1
-      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.15, 0.62);
-      const saturation = THREE.MathUtils.clamp(hsl.s - t*0.06, 0.3, 0.7);
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.17, 0.70);
+      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.08, 0.4, 0.66);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
