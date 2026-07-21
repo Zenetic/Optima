@@ -282,7 +282,6 @@
   const GAP = 0.11;
   const SPACING = BRICK + GAP;
   const STUD_R = BRICK*0.28, STUD_H = BRICK*0.22;
-  const BRICK_EDGE_SOFTEN = 0.05; // world units — small rounded bevel on each brick's edges, see roundedBoxGeometry below
 
   const rows = HEART_BITMAP.length, cols = HEART_BITMAP[0].length, numLayers = LAYERS.length;
   const THIRD = cols/3;
@@ -448,26 +447,26 @@
     const base = new THREE.Color(baseHex);
     const hsl = {};
     base.getHSL(hsl);
-    // Calibrated directly against the live reference (prime-yew-54311187.
-    // figma.site/plug-and-play): sampled ~56k opaque, non-background pixels
-    // from a screenshot of its actual rendered heart and measured their real
-    // HSL values — hue clustered at ~208–220° (matching this project's own
-    // ~212° single-hue palette), true brick-face lightness ran from about
-    // 0.17 (darkest navy) up to about 0.65–0.70 (lightest solid blue, once
-    // you exclude anti-aliased edge pixels blending into the white page
-    // background above that), and saturation stayed in a fairly narrow
-    // 0.42–0.63 band with no strong lightness trend either way. `t` is
-    // normalized to -1..1 regardless of a group's module count (PERSEVERE
-    // has 4 modules, PATHFINDER/SENTINEL have 2 each) so every group spans
-    // the same measured range consistently, instead of the 4-module group
-    // reaching further toward the extremes than the 2-module ones did.
-    const LIGHTNESS_CENTER = 0.43;
-    const LIGHTNESS_SPREAD = 0.25;
+    // A previous attempt sampled rendered PIXEL colors straight off a
+    // screenshot of the reference site and fed those numbers in here as
+    // material base colors. That doesn't transfer 1:1 — the sampled pixels
+    // already had THAT scene's own lighting baked in, so feeding them into
+    // THIS scene's material color and then lighting them AGAIN effectively
+    // double-brightened everything, clipping the lit/beveled faces to
+    // washed-out white/cyan instead of the intended blue. Dialed back to
+    // the range that actually rendered correctly in this scene (deep navy
+    // up to a moderate light blue, no near-white). `t` is normalized to
+    // -1..1 regardless of a group's module count (PERSEVERE has 4 modules,
+    // PATHFINDER/SENTINEL have 2 each) so every group spans the same range
+    // consistently, instead of the 4-module group reaching further toward
+    // the extremes than the 2-module ones did.
+    const LIGHTNESS_CENTER = 0.39;
+    const LIGHTNESS_SPREAD = 0.21;
     const palette = [];
     for(let i=0;i<count;i++){
       const t = count > 1 ? (i - (count-1)/2) / ((count-1)/2) : 0; // normalized to -1..1
-      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.17, 0.70);
-      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.08, 0.4, 0.66);
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.15, 0.62);
+      const saturation = THREE.MathUtils.clamp(hsl.s - t*0.06, 0.3, 0.7);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
@@ -612,47 +611,6 @@
   scene.add(heartGroup);
   const bricks = [];
 
-  // A small rounded rectangle in the XY plane, used as the cross-section for
-  // roundedBoxGeometry below (rounds the 4 vertical corner edges).
-  function roundedRectShape(w, h, r){
-    const shape = new THREE.Shape();
-    const x = -w/2, y = -h/2;
-    shape.moveTo(x, y + r);
-    shape.lineTo(x, y + h - r);
-    shape.quadraticCurveTo(x, y + h, x + r, y + h);
-    shape.lineTo(x + w - r, y + h);
-    shape.quadraticCurveTo(x + w, y + h, x + w, y + h - r);
-    shape.lineTo(x + w, y + r);
-    shape.quadraticCurveTo(x + w, y, x + w - r, y);
-    shape.lineTo(x + r, y);
-    shape.quadraticCurveTo(x, y, x, y + r);
-    return shape;
-  }
-  // A box with all 12 edges softly rounded (instead of THREE.BoxGeometry's
-  // sharp edges) — extrudes a rounded rectangle with a matching bevel on the
-  // extrusion ends, so the corner rounding and the end-cap rounding meet up
-  // consistently. The rectangle/extrude depth are shrunk by exactly `bevel`
-  // first so the FINAL bevel-inclusive silhouette comes out to exactly
-  // width x height x depth — brick-to-brick seams stay exactly where
-  // THREE.BoxGeometry would have put them, just with softened edges.
-  function roundedBoxGeometry(width, height, depth, bevel){
-    const shapeW = Math.max(width - 2*bevel, 0.001);
-    const shapeH = Math.max(height - 2*bevel, 0.001);
-    const r = Math.min(bevel, Math.min(shapeW, shapeH)/2);
-    const shape = roundedRectShape(shapeW, shapeH, r);
-    const extrudeDepth = Math.max(depth - 2*bevel, 0.001);
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: extrudeDepth,
-      bevelEnabled: true,
-      bevelThickness: bevel,
-      bevelSize: bevel,
-      bevelSegments: 1,
-      curveSegments: 2,
-    });
-    geo.center();
-    return geo;
-  }
-
   function buildPiece(zi, r, cellCols, side){
     const colXs = cellCols.map(c => (c - (cols-1)/2) * SPACING);
     const centerX = (colXs[0] + colXs[colXs.length-1]) / 2;
@@ -670,7 +628,7 @@
     const mat = new THREE.MeshStandardMaterial({ color, roughness:0.42, metalness:0.06, emissive:HOVER_LIGHT_BLUE, emissiveIntensity:0 });
 
     const grp = new THREE.Group();
-    const box = new THREE.Mesh(roundedBoxGeometry(BRICK*(len-0.1), BRICK*0.9, BRICK*0.9, BRICK_EDGE_SOFTEN), mat);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(BRICK*(len-0.1), BRICK*0.9, BRICK*0.9), mat);
     box.castShadow = true; box.receiveShadow = true;
     grp.add(box);
 
