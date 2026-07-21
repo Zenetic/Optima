@@ -95,8 +95,14 @@ html{ overflow-y:auto; scrollbar-gutter:stable; }
 /* Vertical padding/margins trimmed down from the original Figma spec
    (64px/32px/40px) so the footer takes up noticeably less of the viewport,
    especially now that it's sticky and visible on every capability page. */
+/* space-between (not centered) so the logo sits flush left and the
+   Contact column sits flush right, matching .sc-footer-bottom's edges
+   below — previously this group was centered as a block narrower than the
+   container, so the logo landed to the right of where the copyright line
+   below it starts, and Contact landed to the left of where the address
+   line ends. */
 .sc-footer-cols{
-  display:flex; gap:64px; align-items:flex-start; justify-content:center;
+  display:flex; gap:64px; align-items:flex-start; justify-content:space-between;
   max-width:1312px; margin:0 auto; padding:28px 64px 0; flex-wrap:wrap;
 }
 .sc-footer-logo{ margin-top:2px; }

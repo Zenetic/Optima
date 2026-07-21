@@ -60,9 +60,12 @@
   /* No longer absolutely positioned inside #stage (which overlapped the
      canvas at the bottom-right, sometimes clipping into the heart itself).
      Now a normal flow row of its own, between the stage and the footer, so
-     it always sits clear below the illustration. */
+     it always sits clear below the illustration. Centered (like a photo
+     caption) rather than right-aligned — the heart itself renders roughly
+     centered in the stage, so a right-pinned note read as floating off to
+     the side instead of belonging to the image above it. */
   #illustrationCopyright{
-    flex:none; text-align:right; padding:6px 24px; z-index:15; pointer-events:none;
+    flex:none; text-align:center; padding:6px 24px; z-index:15; pointer-events:none;
     font-size:11px; color:#5f6b7a; letter-spacing:0.01em;
   }
   #hint{
