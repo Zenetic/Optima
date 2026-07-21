@@ -7,6 +7,12 @@
 <link rel="stylesheet" href="site-chrome.css" />
 <style>
   :root{ --accent:#2f8f8a; }
+  /* Matches reviewacase.html's reset. Without it, .wrap's max-width:1440px
+     + padding:24px computed as a 1488px content-box (padding added outside
+     the width), vs. reviewacase.html's border-box .cap-header/.ce-root
+     which cap the *total* box at 1440px — a 48px discrepancy that shifted
+     this page's content left relative to PERSEVERE's. */
+  *, *::before, *::after{ box-sizing:border-box; }
   html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
   .wrap{ max-width:1440px; margin:0 auto; padding:20px 24px 80px; }
   .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
