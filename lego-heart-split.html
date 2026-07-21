@@ -482,6 +482,7 @@
   ========================================================================= */
 
   const stage = document.getElementById("stage");
+  const titleBlock = document.getElementById("titleBlock"); // measured below to keep the heart clear of it in every state
   const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
@@ -527,6 +528,59 @@
     });
     const halfHeight = Math.max(maxY, maxX/aspect) * padding;
     return halfHeight*2;
+  }
+
+  // How many pixels from the top of the stage the title/subtitle actually
+  // occupy right now (whatever text length/font-size/wrapping the current
+  // breakpoint renders), plus a fixed breathing-room buffer below it.
+  // Measuring the real DOM instead of assuming a fixed height is what makes
+  // the heart-framing below adapt correctly across the title's own
+  // responsive breakpoints, instead of needing a matching hand-tuned camera
+  // constant per breakpoint.
+  function reservedTopPx(){
+    const stageTop = stage.getBoundingClientRect().top;
+    const titleBottom = titleBlock.getBoundingClientRect().bottom;
+    return Math.max(0, titleBottom - stageTop) + 24;
+  }
+
+  function projectToStagePx(worldPoint){
+    const ndc = worldPoint.clone().project(camera);
+    return {
+      x: (ndc.x * 0.5 + 0.5) * stage.clientWidth,
+      y: (1 - (ndc.y * 0.5 + 0.5)) * stage.clientHeight,
+    };
+  }
+
+  // How many world-space Y units to shift a box's framing target upward so
+  // the box's own TRUE top edge clears the title block on screen (with the
+  // buffer above), for a given aspect/padding. Two passes: the first
+  // measures where the un-biased box would land, the second corrects using
+  // the actual measured pixel error — biasing only repositions the box
+  // (its size, and so the fitted frustum size, barely changes), so this
+  // converges essentially exactly without needing more than two passes.
+  // This replaces hand-tuned world-unit constants (previously a single
+  // ASSEMBLED_Y_BIAS, picked by trial and error against one screen size)
+  // with a value derived from what's actually on screen right now.
+  function computeTopClearBias(realBox, aspect, padding){
+    const reserved = reservedTopPx();
+    const topCenter = new THREE.Vector3(
+      (realBox.min.x + realBox.max.x) / 2, realBox.max.y, (realBox.min.z + realBox.max.z) / 2
+    );
+    let bias = 0;
+    for(let i = 0; i < 2; i++){
+      const shifted = new THREE.Box3(
+        realBox.min.clone().setY(realBox.min.y + bias),
+        realBox.max.clone().setY(realBox.max.y + bias)
+      );
+      const target = shifted.getCenter(new THREE.Vector3());
+      setCameraTransform(target);
+      const fSize = computeFitFrustum(shifted, aspect, padding);
+      frustumSize = fSize; updateFrustum();
+      const { y: topPx } = projectToStagePx(topCenter);
+      const errorPx = reserved - topPx; // positive => real top edge still above the reserved line
+      bias += errorPx * (fSize / stage.clientHeight);
+    }
+    return Math.max(0, bias);
   }
 
   const LEGACY_LIGHT_COMPENSATION = Math.PI;
@@ -716,25 +770,37 @@
     );
   }
 
-  const DEFAULT_BOX = fullSplitBox(); // worst-case framing: fully split apart, used while split/splitting/reassembling
-  const ASSEMBLED_BOX_RAW = assembledBox(); // tight framing for the closed heart specifically
-  // Bias the camera target above the heart's true geometric center — same
-  // framed SIZE (so it doesn't change the zoom level), just a higher look-at
-  // point — so the now much-bigger heart renders lower in the canvas,
-  // clear of the title/subtitle above it instead of pushing up into them.
-  const ASSEMBLED_Y_BIAS = 3.0;
-  const ASSEMBLED_BOX = new THREE.Box3(
-    ASSEMBLED_BOX_RAW.min.clone().setY(ASSEMBLED_BOX_RAW.min.y + ASSEMBLED_Y_BIAS),
-    ASSEMBLED_BOX_RAW.max.clone().setY(ASSEMBLED_BOX_RAW.max.y + ASSEMBLED_Y_BIAS)
-  );
-  // Margin around the closed heart — enough to clear the header/title above
-  // and the footer below on shorter viewports, but snugger than the earlier
-  // 1.35 (which read as too small). 1.12 matches SPLIT_PADDING's proven
-  // "tight but not cropped" value. The split/focused views are unaffected —
-  // they use SPLIT_PADDING, and are fine overlapping the header/footer once
-  // the user has interacted.
+  const DEFAULT_BOX_RAW = fullSplitBox(); // worst-case framing: fully split apart (unbiased), used while split/splitting/reassembling
+  const ASSEMBLED_BOX_RAW = assembledBox(); // tight framing for the closed heart specifically (unbiased)
+
+  // Margin around the fitted box, per framing mode. 1.12 is snug but not
+  // cropped — proven out for the split/focused views; reused for the
+  // assembled view too since it reads the same way there.
   const ASSEMBLED_PADDING = 1.12;
   const SPLIT_PADDING = 1.12;
+
+  // Both the closed (assembled) and expanded (split) framings get their
+  // camera target biased upward — by however many world units are actually
+  // needed to clear the title block's REAL rendered height at the current
+  // viewport (computeTopClearBias, defined above next to computeFitFrustum)
+  // — instead of a single hand-tuned constant (the old ASSEMBLED_Y_BIAS=3.0)
+  // that only happened to clear the title at one screen size. The split
+  // view previously relied on shrinking SPLIT_GAP to indirectly keep the
+  // top group out of the subtitle; an explicit bias is the direct fix.
+  const initialAspect = stage.clientWidth / stage.clientHeight;
+  let ASSEMBLED_Y_BIAS = computeTopClearBias(ASSEMBLED_BOX_RAW, initialAspect, ASSEMBLED_PADDING);
+  let SPLIT_Y_BIAS = computeTopClearBias(DEFAULT_BOX_RAW, initialAspect, SPLIT_PADDING);
+
+  function biasedBox(rawBox, bias){
+    return new THREE.Box3(
+      rawBox.min.clone().setY(rawBox.min.y + bias),
+      rawBox.max.clone().setY(rawBox.max.y + bias)
+    );
+  }
+
+  const ASSEMBLED_BOX = biasedBox(ASSEMBLED_BOX_RAW, ASSEMBLED_Y_BIAS);
+  const DEFAULT_BOX = biasedBox(DEFAULT_BOX_RAW, SPLIT_Y_BIAS);
+
   let currentFitBox = ASSEMBLED_BOX; // page loads in the assembled state
   let currentPadding = ASSEMBLED_PADDING;
 
@@ -742,6 +808,26 @@
     const aspect = stage.clientWidth / stage.clientHeight;
     frustumSize = computeFitFrustum(currentFitBox, aspect, currentPadding);
     updateFrustum();
+  }
+
+  // Recomputes both boxes' top-clearing bias for the CURRENT viewport (the
+  // title's height/position changes across its own mobile breakpoints, and
+  // the aspect ratio changes on every resize), then re-centers the camera
+  // on whichever framing is at rest. Only called from the resize handler
+  // (after camTween below exists), and no-ops mid-tween/while
+  // focused/focusing — same as the rest of the resize handling.
+  function updateBiasedBoxes(){
+    const aspect = stage.clientWidth / stage.clientHeight;
+    ASSEMBLED_Y_BIAS = computeTopClearBias(ASSEMBLED_BOX_RAW, aspect, ASSEMBLED_PADDING);
+    SPLIT_Y_BIAS = computeTopClearBias(DEFAULT_BOX_RAW, aspect, SPLIT_PADDING);
+    ASSEMBLED_BOX.min.copy(ASSEMBLED_BOX_RAW.min).setY(ASSEMBLED_BOX_RAW.min.y + ASSEMBLED_Y_BIAS);
+    ASSEMBLED_BOX.max.copy(ASSEMBLED_BOX_RAW.max).setY(ASSEMBLED_BOX_RAW.max.y + ASSEMBLED_Y_BIAS);
+    DEFAULT_BOX.min.copy(DEFAULT_BOX_RAW.min).setY(DEFAULT_BOX_RAW.min.y + SPLIT_Y_BIAS);
+    DEFAULT_BOX.max.copy(DEFAULT_BOX_RAW.max).setY(DEFAULT_BOX_RAW.max.y + SPLIT_Y_BIAS);
+    if(!camTween && (appState === "assembled" || appState === "split")){
+      currentCameraTarget.copy(currentFitBox.getCenter(new THREE.Vector3()));
+      setCameraTransform(currentCameraTarget);
+    }
   }
 
   // Camera target must start at the actual center of the box we're framing
@@ -1231,7 +1317,10 @@
   function handleResize(){
     renderer.setSize(stage.clientWidth, stage.clientHeight);
     if(blurRenderer) blurRenderer.setSize(stage.clientWidth, stage.clientHeight);
-    if(!camTween) refitFrustum();
+    if(!camTween){
+      updateBiasedBoxes();
+      refitFrustum();
+    }
     if(appState === "split") updateLabels();
   }
   window.addEventListener("resize", handleResize);
