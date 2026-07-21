@@ -13,9 +13,13 @@
    that page's content is actually tall enough to scroll. Without this, the
    three capability pages (which have different content heights) each get a
    slightly different usable viewport width — the ones without a scrollbar
-   render ~15px wider than the one with a scrollbar — so centered, max-width
-   content shifts a few pixels sideways every time you switch tabs. */
-html{ scrollbar-gutter:stable; }
+   render ~15-17px wider than the one with a scrollbar — so centered,
+   max-width content shifts sideways (and looks narrower on the taller page)
+   every time you switch tabs. scrollbar-gutter only takes effect on a box
+   that can actually scroll, so overflow-y:auto is required here too — auto
+   still hides the scrollbar when there's nothing to scroll, it just keeps
+   reserving its space either way. */
+html{ overflow-y:auto; scrollbar-gutter:stable; }
 
 /* ---------- Capability page tabs ----------
    Shared across reviewacase.html/pathfinder-radar.html/sentinel.html —
