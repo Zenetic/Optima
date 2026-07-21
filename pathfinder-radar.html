@@ -8,7 +8,7 @@
 <style>
   :root{ --accent:#2f8f8a; }
   html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; color:#0f1b3d; }
-  .wrap{ max-width:960px; margin:0 auto; padding:28px 24px 80px; }
+  .wrap{ max-width:1440px; margin:0 auto; padding:28px 24px 80px; }
   .back{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:#5b6474; text-decoration:none; margin-bottom:22px; }
   .back:hover{ color:var(--accent); }
   .eyebrow{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
@@ -30,29 +30,33 @@
     background:#fff; border-radius:16px; padding:20px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
     border:1px solid #eef1f7; flex:none;
   }
-  .chart-caption{ text-align:center; font-size:11.5px; color:#9aa3b2; margin-top:8px; }
+  .chart-caption{ text-align:center; font-size:11.5px; color:#5f6b7a; margin-top:8px; }
 
   .table-card{
     background:#fff; border-radius:16px; padding:20px 22px; box-shadow:0 10px 30px -16px rgba(15,27,61,0.25);
     border:1px solid #eef1f7; flex:1; min-width:320px;
   }
   .table-card h2{ margin:0 0 4px; font-size:15px; }
-  .table-card .table-sub{ margin:0 0 14px; font-size:12px; color:#9aa3b2; }
+  .table-card .table-sub{ margin:0 0 14px; font-size:12px; color:#5f6b7a; }
   table{ width:100%; border-collapse:collapse; font-size:13px; }
-  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:#9aa3b2; padding:0 10px 8px 0; border-bottom:1px solid #eef1f7; }
+  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:#5f6b7a; padding:0 10px 8px 0; border-bottom:1px solid #eef1f7; }
   td{ padding:9px 10px 9px 0; border-bottom:1px solid #f4f6fb; }
   td.num{ font-weight:800; color:#0f1b3d; text-align:right; padding-right:0; }
   tr:last-child td{ border-bottom:none; }
   .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
 
-  footer{ margin-top:36px; font-size:11.5px; color:#9aa3b2; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
+  footer{ margin-top:36px; font-size:11.5px; color:#5f6b7a; font-style:italic; line-height:1.6; border-top:1px solid #eef1f7; padding-top:16px; }
 </style>
 </head>
 <body data-demo-popup>
 <div id="site-header"></div>
 <div class="wrap">
   <a class="back" href="lego-heart-split.html">&larr; Back to overview</a>
-  <p class="eyebrow">PATHFINDER · Volume &amp; Actions</p>
+  <nav class="cap-tabs" aria-label="Capabilities">
+    <a href="reviewacase.html">PERSEVERE</a>
+    <a href="pathfinder-radar.html" class="active">PATHFINDER</a>
+    <a href="sentinel.html">SENTINEL</a>
+  </nav>
   <h1>Clinical Actions — HFrEF Population</h1>
   <p class="sub">Where every patient in the current HFrEF population stands at the time of data pull, and what action their case is waiting on.</p>
 
@@ -189,7 +193,7 @@
   const tbody = document.getElementById("tableBody");
   tbody.innerHTML = DATA.map(d => `
     <tr>
-      <td><span class="dot" style="background:${ACCENT}"></span>${d.label}<br/><span style="color:#9aa3b2; font-size:11px;">${d.sub}</span></td>
+      <td><span class="dot" style="background:${ACCENT}"></span>${d.label}<br/><span style="color:#5f6b7a; font-size:11px;">${d.sub}</span></td>
       <td class="num">${d.count}</td>
     </tr>
   `).join("");

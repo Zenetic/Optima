@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OPTIMA — Circuit Heart Concept (Light)</title>
+<style>
+  *, *::before, *::after{ box-sizing:border-box; }
+  :root{
+    /* Darkened versions of the dark-theme's accent hues — the originals
+       (#4fa3ff/#2dd4bf/#a78bfa) were tuned for contrast against a near-black
+       page and read as washed-out pastel on white. */
+    --persevere:#1c63b7; --pathfinder:#0f8f7e; --sentinel:#7c4fd1;
+  }
+  html,body{ margin:0; padding:0; background:#f5f7fb; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif; }
+
+  #stage{
+    position:relative; width:100%; min-height:100vh; padding-bottom:64px;
+    background:
+      radial-gradient(circle at 50% 28%, #ffffff 0%, #eef3fb 45%, #e3ebf8 100%);
+    overflow-x:hidden;
+  }
+
+  #pageTitle{
+    margin:0; padding:34px 20px 6px; text-align:center;
+    font-size:24px; font-weight:800; color:#0f1b3d; letter-spacing:-0.01em;
+  }
+  #hint{
+    text-align:center; margin:2px 0 0; font-size:13.5px; color:#5b6474;
+    transition:opacity .2s ease;
+  }
+
+  /* ---------- heart stage ----------
+     The SVG layer is now just ambient background decoration (halo glow +
+     twinkling dots) behind a real WebGL layer rendering an actual low-poly
+     3D heart, so it reads as a solid faceted object rather than a line
+     drawing. Page still scrolls normally (no fixed 100vh canvas) — the
+     heart box has a fixed size and the card grid just sits below it in
+     flow. */
+  #heartWrap{
+    position:relative; width:540px; max-width:90vw; height:460px;
+    margin:36px auto 0;
+  }
+  #bgSvg{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  #heartCanvas{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:pointer; touch-action:none; }
+  .heart-shadow{
+    position:absolute; left:50%; bottom:36px; transform:translateX(-50%);
+    width:230px; height:36px; border-radius:50%;
+    background:radial-gradient(ellipse at center, rgba(15,27,61,0.28) 0%, rgba(15,27,61,0) 72%);
+    filter:blur(2px); pointer-events:none;
+  }
+
+  .halo{ animation:haloPulse 4.5s ease-in-out infinite; transform-origin:150px 190px; }
+  #stage.split .halo{ animation:none; opacity:0.85; }
+  @keyframes haloPulse{ 0%,100%{ opacity:0.3; } 50%{ opacity:0.55; } }
+
+  /* The flat SVG background circuit traces (a separate, only-approximate
+     2D heart outline) never actually touched the real 3D heart rendered on
+     top of it — they were decorative lines floating nearby, not wires
+     "connected to the heart." Removed entirely; the outward circuit traces
+     that DO connect (anchored to real 3D facet vertices, see
+     buildZonePiece) already cover that role properly. Twinkling background
+     dots are unrelated to the heart itself and stay. */
+  .bg-dot{ fill:#8ca3cc; animation:twinkle 3.6s ease-in-out infinite; }
+  @keyframes twinkle{ 0%,100%{ opacity:0.12; } 50%{ opacity:0.5; } }
+
+  /* ---------- group cards ----------
+     Pulled tighter under the heart both by shrinking the heart box itself
+     (520px → 440px → 400px, which trims the empty frustum padding below
+     the model rather than just adding a negative margin hack) and by
+     cutting the row's own margin-top to zero. #linkOverlay below draws a
+     REAL wire from each piece's own dedicated link-trace down to its card. */
+  #groupCards{
+    position:relative; width:100%; margin:0 auto; padding:0 20px;
+    display:grid; grid-template-columns:repeat(3, 355px); column-gap:24px;
+    justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .35s ease;
+  }
+  #groupCards.visible{ opacity:1; pointer-events:auto; }
+  .grp-card{
+    position:relative;
+    background:rgba(255,255,255,0.92); backdrop-filter:blur(18px) saturate(160%);
+    -webkit-backdrop-filter:blur(18px) saturate(160%);
+    border:1px solid rgba(15,27,61,0.10);
+    border-top:3px solid var(--accent);
+    border-radius:16px; padding:16px 18px 14px;
+    box-shadow:0 0 30px -12px var(--accent), 0 20px 45px -20px rgba(15,27,61,0.25);
+    transition:box-shadow .2s ease, transform .2s ease;
+  }
+  /* Toggled by pointermove raycasting against the 3D heart (see the
+     pointermove listener near the other canvas events below) — hovering a
+     piece of the heart emphasizes the card for the group that piece
+     belongs to, so the connection between the 3D object and its panel
+     reads immediately, not just via the static wire link. */
+  .grp-card.heart-hover{
+    box-shadow:0 0 42px -8px var(--accent), 0 22px 50px -18px rgba(15,27,61,0.3);
+    transform:translateY(-3px);
+  }
+
+  /* ---------- wire-to-popup links ----------
+     Fixed full-viewport overlay (not scoped to #stage) so raw
+     getBoundingClientRect() coordinates — which are already
+     viewport-relative — can be used directly with no scroll-offset math. */
+  #linkOverlay{ position:fixed; inset:0; width:100vw; height:100vh; pointer-events:none; z-index:15; }
+  .link-wire{ stroke-width:1.4; fill:none; opacity:0.85; transition:opacity .3s ease; }
+  .link-dot{ opacity:0.95; }
+  .grp-header{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .grp-dot{ width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none; box-shadow:0 0 8px var(--accent); }
+  .grp-header h3{ margin:0; font-size:16px; font-weight:800; color:#0f1b3d; letter-spacing:0.02em; }
+  .grp-tagline{ margin:0 0 12px; font-size:12px; color:#5b6474; line-height:1.4; }
+  .grp-modules{ display:flex; flex-direction:column; gap:8px; }
+
+  /* Click-to-open, in-place expand — back on a deliberate click trigger
+     (rather than hover) since hover-driven reveals kept causing friction:
+     something always shifted or got covered while the cursor was just
+     passing through. A click is an explicit choice, so the same "grows
+     downward and pushes the rows below it" reflow that felt janky on
+     hover reads as a normal accordion here — nothing moves until you
+     decide it should. Only one module opens at a time per card. */
+  .mod-row{ border-radius:10px; overflow:hidden; }
+  .mod-row-head{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:8px;
+    padding:10px 12px; border-radius:8px; cursor:pointer;
+    transition:background .2s ease;
+  }
+  .mod-row.open .mod-row-head{ background:rgba(15,27,61,0.06); }
+  /* Several module names run long enough to wrap onto a second line —
+     align-items:flex-start (rather than center) keeps the icon pinned to
+     the TOP of that paragraph instead of drifting to the vertical center
+     of the whole wrapped block. The small top nudge on .mod-icon corrects
+     for the icon's box otherwise sitting a hair above the text's own
+     cap-height. */
+  .mod-name-wrap{ display:flex; align-items:flex-start; gap:8px; min-width:0; }
+  .mod-icon{ flex:none; width:16px; height:16px; margin-top:2px; color:var(--accent); opacity:0.9; }
+  .mod-icon svg{ width:100%; height:100%; display:block; }
+  .mod-name{ font-size:12.5px; font-weight:700; color:#0f1b3d; line-height:1.35; }
+  .mod-chevron{ flex:none; color:var(--accent); opacity:0.85; transition:transform .3s ease; }
+  .mod-row.open .mod-chevron{ transform:rotate(90deg); }
+
+  .mod-back-wrap{
+    display:grid; grid-template-rows:0fr;
+    transition:grid-template-rows .35s cubic-bezier(.4,.2,.2,1);
+  }
+  .mod-row.open .mod-back-wrap{ grid-template-rows:1fr; }
+  .mod-back-inner{ overflow:hidden; }
+  /* A crisp white panel with its own border, distinct from the row head's
+     light-gray tint and the page's own light background, so it still
+     reads as a deliberate "revealed" panel rather than an unstyled patch
+     of the same background. */
+  .mod-back{
+    background:#ffffff; border-top:1px solid rgba(15,27,61,0.08);
+    color:#1c2942; padding:12px 14px;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .mod-back-text{ margin:0; font-size:14.5px; line-height:1.5; color:#1c2942; }
+
+  /* Replaces the old plain italic "Features:/Deployment:" sentence with a
+     row of small icon+label chips per category — same underlying facts,
+     easier to scan than a run-on sentence buried at the bottom of every
+     module. */
+  .mod-tags{ display:flex; flex-direction:column; gap:8px; margin-top:2px; }
+  .mod-tags-label{
+    font-size:10.5px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.05em; color:#7a8699;
+  }
+  .mod-tags-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  /* Same top-alignment fix as .mod-name-wrap above — several deployment
+     labels ("Academic Medical Center cybersecurity standards", etc.) wrap
+     to a second line inside the pill, and flex-start keeps the icon at
+     the top of that text instead of centered on the whole wrapped chip. */
+  .mod-tag{
+    display:inline-flex; align-items:flex-start; gap:5px;
+    font-size:11.5px; line-height:1.3; color:#1c2942;
+    background:rgba(28,41,66,0.06); border-radius:999px; padding:4px 9px 4px 7px;
+  }
+  .mod-tag svg{ width:12px; height:12px; margin-top:1px; flex:none; color:var(--accent); }
+
+  .grp-details{
+    display:inline-flex; align-items:center; gap:5px; margin-top:14px;
+    font-size:12.5px; font-weight:700; color:var(--accent); text-decoration:none;
+  }
+  .grp-details:hover{ text-decoration:underline; }
+  .grp-details svg{ width:11px; height:11px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <h1 id="pageTitle">Comprehensive Heart Failure Management</h1>
+  <div id="hint">Click the heart to explore PERSEVERE, PATHFINDER &amp; SENTINEL</div>
+
+  <div id="heartWrap">
+    <svg id="bgSvg" viewBox="0 0 300 380" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#3f7de0" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#3f7de0" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <g id="bgDots"></g>
+      <ellipse class="halo" cx="150" cy="190" rx="150" ry="158" fill="url(#haloGrad)"/>
+    </svg>
+    <canvas id="heartCanvas"></canvas>
+    <div class="heart-shadow"></div>
+  </div>
+
+  <div id="groupCards"></div>
+</div>
+<svg id="linkOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  /* =========================================================================
+     SEEDED RNG — keeps the generated background dots and the 3D heart's
+     outward wire traces stable across reloads instead of reshuffling every
+     time the page opens.
+  ========================================================================= */
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rand = mulberry32(1337);
+
+  /* ---------- background decoration (SVG, flat pixel space) ----------
+     The flat-curve-anchored circuit traces that used to live here were
+     removed — they were built from an independent 2D approximation of the
+     heart that never actually lined up with the real 3D heart rendered on
+     top of it, so they read as wires floating in the background rather
+     than wires connected to anything. Only the twinkling ambient dots
+     (unrelated to the heart's own shape) remain here now. */
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  function svgEl(tag, attrs){
+    const n = document.createElementNS(SVG_NS, tag);
+    Object.keys(attrs).forEach(k => n.setAttribute(k, attrs[k]));
+    return n;
+  }
+  const bgDotsEl = document.getElementById("bgDots");
+  for(let i=0;i<36;i++){
+    const dot = svgEl("circle", { cx:rand()*300, cy:rand()*380, r:0.8+rand()*1.6, class:"bg-dot" });
+    dot.style.animationDelay = (rand()*3.6).toFixed(2)+"s";
+    bgDotsEl.appendChild(dot);
+  }
+
+  /* =========================================================================
+     3D LOW-POLY HEART, take 2 — the first pass extruded a flat 2D heart
+     outline, which gave a smooth two-panel front/back with facets only
+     around the thin bevel edge: from most angles it just read as a plain
+     flat heart, not a faceted 3D object. A genuinely faceted look needs
+     actual non-coplanar 3D facets covering the WHOLE surface, the way a
+     low-poly gem does. So this pass starts from an icosahedron — a sphere
+     already built entirely out of flat triangular facets — and reshapes it
+     into a heart silhouette by scaling each vertex's XY position by a
+     per-angle factor pulled from the same heart-curve formula, while
+     leaving its Z (front-to-back) and its natural sphere-latitude tapering
+     alone. That keeps every facet the icosahedron already has (so the
+     puffy 3D volume and per-facet shading survive) while bending the
+     overall silhouette into a heart shape.
+  ========================================================================= */
+  const heartAngleTable = [];
+  const ANGLE_SAMPLES = 240;
+  for(let i=0;i<ANGLE_SAMPLES;i++){
+    const t = (i/ANGLE_SAMPLES)*Math.PI*2;
+    const x = 16*Math.pow(Math.sin(t),3);
+    const y = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+    heartAngleTable.push({ a: Math.atan2(y,x), r: Math.sqrt(x*x+y*y) });
+  }
+  const REF_RADIUS = heartAngleTable.reduce((s,p) => s+p.r, 0) / heartAngleTable.length;
+  // The raw ratio (cleft radius ~5 vs. tip radius ~17) pulls the icosahedron
+  // in HARD near the cleft — enough to pinch it into a sharp concave fold
+  // that reads as a dark gap/"missing polygon" once lit, rather than a
+  // heart notch. Blending the factor 60% toward the heart curve and 40%
+  // toward the sphere's own roundness keeps the silhouette recognizably
+  // heart-shaped while keeping the surface itself gently convex.
+  const DEFORM_BLEND = 0.6;
+  function heartFactorAtAngle(angle){
+    let best = heartAngleTable[0], bestDiff = Infinity;
+    for(let i=0;i<heartAngleTable.length;i++){
+      let diff = Math.abs(heartAngleTable[i].a - angle);
+      if(diff > Math.PI) diff = Math.PI*2 - diff;
+      if(diff < bestDiff){ bestDiff = diff; best = heartAngleTable[i]; }
+    }
+    const raw = best.r / REF_RADIUS;
+    return 1 + (raw-1)*DEFORM_BLEND;
+  }
+
+  const XY_SCALE = 2.55, Z_SCALE = 1.75;
+  function deformToHeart(v){
+    const angle = Math.atan2(v.y, v.x);
+    const factor = heartFactorAtAngle(angle);
+    return new THREE.Vector3(v.x*factor*XY_SCALE, v.y*factor*XY_SCALE, v.z*Z_SCALE);
+  }
+
+  // detail=1 gives an 80-facet icosahedron — chunky enough to read as
+  // low-poly, detailed enough to still resolve into a recognizable heart
+  // once deformed.
+  const baseGeo = new THREE.IcosahedronGeometry(1, 1);
+  const posAttr = baseGeo.attributes.position;
+  const idxAttr = baseGeo.index;
+  const triCount = idxAttr ? idxAttr.count/3 : posAttr.count/3;
+  function triIndices(t){
+    return idxAttr ? [idxAttr.getX(t*3), idxAttr.getX(t*3+1), idxAttr.getX(t*3+2)] : [t*3, t*3+1, t*3+2];
+  }
+  const deformedCache = new Map();
+  function getDeformed(i){
+    if(deformedCache.has(i)) return deformedCache.get(i);
+    const v = new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+    const d = deformToHeart(v);
+    deformedCache.set(i, d);
+    return d;
+  }
+  // Vertex indices are kept alongside deformed positions (not just the
+  // positions themselves) so the capping step below can tell which edges
+  // were actually shared between two triangles in the original closed
+  // shell — that's the only reliable way to find exactly where a zone's
+  // surface got cut open.
+  const triangles = [];
+  for(let t=0;t<triCount;t++){
+    const [i0,i1,i2] = triIndices(t);
+    triangles.push({ idx:[i0,i1,i2], pos:[getDeformed(i0), getDeformed(i1), getDeformed(i2)] });
+  }
+
+  // Zone thirds are computed from this heart's own actual bounding box (not
+  // reused from the flat SVG version's numbers), same sideOf()-style split
+  // as every other build in this project.
+  const allX = [];
+  triangles.forEach(tri => tri.pos.forEach(v => allX.push(v.x)));
+  const gMinX = Math.min(...allX), gMaxX = Math.max(...allX);
+  const gThird1 = gMinX + (gMaxX-gMinX)/3, gThird2 = gMinX + (gMaxX-gMinX)*2/3;
+  function zoneOfX(x){
+    if(x < gThird1) return "persevere";
+    if(x < gThird2) return "pathfinder";
+    return "sentinel";
+  }
+  const zoneTriangles = { persevere:[], pathfinder:[], sentinel:[] };
+  triangles.forEach(tri => {
+    const cx = (tri.pos[0].x+tri.pos[1].x+tri.pos[2].x)/3;
+    zoneTriangles[zoneOfX(cx)].push(tri);
+  });
+
+  /* The icosahedron shell is closed (every edge shared by exactly 2
+     triangles) — so within one zone's own triangle list, any edge used by
+     only 1 triangle is exactly where that zone got cut away from a
+     neighbor. Those edges traced a hole in what used to be a seamless
+     shell, which is what showed up as a dark "missing interior" gap once
+     REST_GAP pulled the pieces visibly apart. Fanning each hole's boundary
+     edges to their own centroid bakes a flat membrane into the piece's own
+     geometry that seals it — since this happens on the shared, cached
+     vertex positions, the seal moves together with the rest of the piece
+     under every transform automatically, no extra bookkeeping needed. */
+  function edgeKey(a,b){ return a<b ? a+"_"+b : b+"_"+a; }
+  function sealZone(zoneTris){
+    const posTriangles = zoneTris.map(tr => tr.pos.slice());
+    const edgeCount = new Map();
+    const edgeVerts = new Map();
+    zoneTris.forEach(tr => {
+      const [i0,i1,i2] = tr.idx;
+      const [p0,p1,p2] = tr.pos;
+      [[i0,i1,p0,p1],[i1,i2,p1,p2],[i2,i0,p2,p0]].forEach(([a,b,pa,pb]) => {
+        const key = edgeKey(a,b);
+        edgeCount.set(key, (edgeCount.get(key)||0)+1);
+        if(!edgeVerts.has(key)) edgeVerts.set(key, [pa,pb]);
+      });
+    });
+    const boundaryEdges = [];
+    edgeCount.forEach((count,key) => { if(count===1) boundaryEdges.push(edgeVerts.get(key)); });
+    if(boundaryEdges.length === 0) return posTriangles;
+
+    // The middle zone has 2 separate seams (one against each neighbor);
+    // the outer 2 zones have only 1. Rather than a full graph-connectivity
+    // pass to find each hole's boundary loop, a simple proximity cluster on
+    // the edges' own x-position is enough for this project's fixed
+    // left/mid/right layout.
+    const groups = [];
+    boundaryEdges.forEach(edge => {
+      const mx = (edge[0].x+edge[1].x)/2;
+      let g = groups.find(g => Math.abs(g.midX-mx) < 0.6);
+      if(!g){ g = { midX:mx, count:1, edges:[] }; groups.push(g); }
+      else { g.midX = (g.midX*g.count+mx)/(g.count+1); g.count++; }
+      g.edges.push(edge);
+    });
+    groups.forEach(g => {
+      const n = g.edges.length*2;
+      const cx = g.edges.reduce((s,e)=>s+e[0].x+e[1].x,0)/n;
+      const cy = g.edges.reduce((s,e)=>s+e[0].y+e[1].y,0)/n;
+      const cz = g.edges.reduce((s,e)=>s+e[0].z+e[1].z,0)/n;
+      const centroid = new THREE.Vector3(cx,cy,cz);
+      g.edges.forEach(([a,b]) => posTriangles.push([a,b,centroid]));
+    });
+    return posTriangles;
+  }
+
+  // The unique (deduplicated) vertex set for one zone's ORIGINAL shell
+  // triangles (before sealZone adds its synthetic cap-centroid vertices) —
+  // these are the real facet corners, which is what both the node dots and
+  // the outward circuit traces below anchor to. Dedup works by object
+  // identity, not coordinate comparison, because getDeformed() caches and
+  // reuses the exact same Vector3 instance for a given source vertex index
+  // every time it's referenced.
+  function uniqueVerts(zoneTris){
+    const seen = new Set();
+    const list = [];
+    zoneTris.forEach(tr => tr.pos.forEach(v => { if(!seen.has(v)){ seen.add(v); list.push(v); } }));
+    return list;
+  }
+  // Dark ink tone instead of the dark-theme's near-white 0xeaf2ff — a bright
+  // wire would nearly disappear against this page's light background.
+  const WIRE_COLOR = 0x24344f;
+  function wireDot(pos, radius){
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(radius, 8, 8), new THREE.MeshBasicMaterial({ color:WIRE_COLOR }));
+    dot.position.copy(pos);
+    return dot;
+  }
+
+  // Each zone becomes its own independent Group (own private copy of its
+  // vertices, not shared with the other 2 zones) so it can be moved on
+  // split without dragging the other pieces' vertices along with it.
+  function buildZonePiece(zoneTris, color){
+    const sealedTris = sealZone(zoneTris);
+    const positions = new Float32Array(sealedTris.length*9);
+    let p = 0;
+    sealedTris.forEach(tri => tri.forEach(v => { positions[p++]=v.x; positions[p++]=v.y; positions[p++]=v.z; }));
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color, flatShading:true, roughness:0.42, metalness:0.06, side:THREE.DoubleSide });
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(geo, mat));
+
+    // Emphasize every real polygon edge (adjacent-facet angle over ~1°) as
+    // a dark overlay on top of the solid facets — this is what actually
+    // gives the surface its "wire" look, rather than relying on the facets'
+    // own shading contrast alone.
+    const edgesGeo = new THREE.EdgesGeometry(geo, 1);
+    const wireMat = new THREE.LineBasicMaterial({ color:WIRE_COLOR, transparent:true, opacity:0.55 });
+    group.add(new THREE.LineSegments(edgesGeo, wireMat));
+
+    // A small dot at every real facet vertex.
+    const verts = uniqueVerts(zoneTris);
+    verts.forEach(v => group.add(wireDot(v, 0.045)));
+
+    // Outward circuit traces: the 3 vertices farthest from the heart's own
+    // center (in the XY plane, i.e. the outer rim) each get a bent,
+    // PCB-style line extending past the heart's silhouette, ending in its
+    // own node dot, anchored to REAL 3D facet vertices. Added as children
+    // of this same group, so they move with the piece on split exactly
+    // like the wire and solid mesh do.
+    const anchors = verts.slice().sort((a,b) => (b.x*b.x+b.y*b.y) - (a.x*a.x+a.y*a.y)).slice(0, Math.min(3, verts.length));
+    const traceMat = new THREE.LineBasicMaterial({ color:WIRE_COLOR, transparent:true, opacity:0.55 });
+    anchors.forEach(a => {
+      const mag = Math.hypot(a.x, a.y) || 1;
+      const dirX = a.x/mag, dirY = a.y/mag;
+      const length = 1.9 + rand()*1.3;
+      const midLen = length*0.45, remLen = length-midLen;
+      const mid = new THREE.Vector3(a.x+dirX*midLen, a.y+dirY*midLen, a.z);
+      const horizontal = Math.abs(dirX) > Math.abs(dirY);
+      const end = horizontal
+        ? new THREE.Vector3(mid.x + Math.sign(dirX)*remLen, mid.y, a.z)
+        : new THREE.Vector3(mid.x, mid.y + Math.sign(dirY)*remLen, a.z);
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, mid, end]), traceMat));
+      group.add(wireDot(a, 0.06));
+      group.add(wireDot(mid, 0.045));
+      group.add(wireDot(end, 0.06));
+    });
+
+    // One more dedicated trace, always pointing straight down from this
+    // piece's lowest vertex — the other 3 traces above point wherever the
+    // outermost vertices happen to be, which is no guarantee any of them
+    // heads toward the card sitting below. This one always does, and its
+    // endpoint (in local space) is stashed on the group so drawLinks() can
+    // project it to screen space and draw a real connecting wire down to
+    // this group's card.
+    const lowest = verts.reduce((b,v) => v.y<b.y ? v : b, verts[0]);
+    const linkLen = 0.9 + rand()*0.3;
+    const linkMid = new THREE.Vector3(lowest.x, lowest.y-linkLen*0.5, lowest.z);
+    const linkEnd = new THREE.Vector3(lowest.x, lowest.y-linkLen, lowest.z);
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([lowest, linkMid, linkEnd]), traceMat));
+    group.add(wireDot(lowest, 0.06));
+    group.add(wireDot(linkMid, 0.045));
+    group.add(wireDot(linkEnd, 0.065));
+    group.userData.linkAnchor = linkEnd.clone();
+
+    return group;
+  }
+
+  // Same base hues as the Lego-brick build (brand consistency across every
+  // version of this prototype), lifted a little brighter than that build's
+  // exact values since a smooth faceted surface under real lighting reads
+  // darker overall than a matte brick does at the same hex value.
+  const GROUP_META = [
+    { id:"persevere", color:0x1c4d84 },
+    { id:"pathfinder", color:0x1f6b66 },
+    { id:"sentinel", color:0x4a3a82 },
+  ];
+
+  const stage = document.getElementById("stage");
+  const heartWrap = document.getElementById("heartWrap");
+  const canvas = document.getElementById("heartCanvas");
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  const ISO_DIR = new THREE.Vector3(1,1,1).normalize();
+  const ISO_DIST = 40;
+  let frustumSize = 9;
+  const camera = new THREE.OrthographicCamera(-4.5,4.5,4.5,-4.5,0.1,200);
+
+  function setCameraTransform(target){
+    camera.position.copy(target).addScaledVector(ISO_DIR, ISO_DIST);
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+  }
+  function updateFrustum(){
+    const aspect = heartWrap.clientWidth / heartWrap.clientHeight;
+    camera.left = -frustumSize*aspect/2; camera.right = frustumSize*aspect/2;
+    camera.top = frustumSize/2; camera.bottom = -frustumSize/2;
+    camera.updateProjectionMatrix();
+  }
+  function computeFitFrustum(box, aspect, padding){
+    const corners = [
+      [box.min.x,box.min.y,box.min.z],[box.min.x,box.min.y,box.max.z],
+      [box.min.x,box.max.y,box.min.z],[box.min.x,box.max.y,box.max.z],
+      [box.max.x,box.min.y,box.min.z],[box.max.x,box.min.y,box.max.z],
+      [box.max.x,box.max.y,box.min.z],[box.max.x,box.max.y,box.max.z],
+    ];
+    let maxX=0, maxY=0;
+    const inv = camera.matrixWorldInverse;
+    corners.forEach(([x,y,z]) => {
+      const v = new THREE.Vector3(x,y,z).applyMatrix4(inv);
+      maxX = Math.max(maxX, Math.abs(v.x));
+      maxY = Math.max(maxY, Math.abs(v.y));
+    });
+    return Math.max(maxY, maxX/aspect) * padding * 2;
+  }
+
+  // Same π-compensation and the same 2-light (key + fill + ambient) setup
+  // proven out on the Lego-brick build — the first pass here added a 3rd
+  // "rim" light on top of that proven combination, and the extra light
+  // washed every facet out toward white/pastel instead of showing the
+  // intended per-group colors. Reverting to exactly the tested values here.
+  const LIGHT_COMPENSATION = Math.PI;
+  scene.add(new THREE.AmbientLight(0xffffff, 0.68));
+  const key = new THREE.DirectionalLight(0xffffff, 0.9*LIGHT_COMPENSATION);
+  key.position.set(18, 26, 14);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xcaddf2, 0.35*LIGHT_COMPENSATION);
+  fill.position.set(-12, 8, -10);
+  scene.add(fill);
+
+  // Because each zone was cut from one continuous mesh with no gap at all,
+  // the 3 pieces tiled together so seamlessly at rest that they read as one
+  // undifferentiated blob rather than 3 parts — there was nothing to see
+  // until the whole thing physically split apart. A small REST_GAP applied
+  // even at rest (same idea as the Lego build always leaving a visible
+  // gap between individual bricks) gives each piece its own permanent,
+  // visible seam, so the 3-way split reads immediately, not just on click.
+  const REST_GAP = 0.16;
+  const SPLIT_GAP = 1.9;
+  const REST_OFFSET = { persevere:-REST_GAP, pathfinder:0, sentinel:REST_GAP };
+  const SPLIT_OFFSET = { persevere:-SPLIT_GAP, pathfinder:0, sentinel:SPLIT_GAP };
+
+  const heartGroup = new THREE.Group();
+  scene.add(heartGroup);
+  const pieces = GROUP_META.map(g => {
+    const mesh = buildZonePiece(zoneTriangles[g.id], g.color);
+    mesh.position.set(REST_OFFSET[g.id], 0, 0);
+    mesh.children[0].userData.zoneId = g.id; // tag the solid mesh for hover raycasting below
+    heartGroup.add(mesh);
+    return { id:g.id, mesh, home:new THREE.Vector3(REST_OFFSET[g.id],0,0), linkAnchor:mesh.userData.linkAnchor };
+  });
+
+  const ARC_HEIGHT = 0.9;
+  const DURATION = 700;
+
+  function pieceSplitBox(p){
+    const box = new THREE.Box3().setFromObject(p.mesh);
+    const shift = SPLIT_OFFSET[p.id] - REST_OFFSET[p.id];
+    box.min.x += shift; box.max.x += shift;
+    return box;
+  }
+  const DEFAULT_BOX = pieces.reduce((acc,p) => acc ? acc.union(pieceSplitBox(p)) : pieceSplitBox(p), null);
+  // padding here is a multiplier on the exact-fit size (1.0 = fits with
+  // zero margin) — a value under 1.0 zooms in PAST the fit and crops the
+  // heart. Kept safely above 1.0 so nothing (including the outward wire
+  // traces, which DEFAULT_BOX already accounts for) clips against the
+  // frame edge.
+  const FIT_PADDING = 1.02;
+  const boxCenterY = DEFAULT_BOX.getCenter(new THREE.Vector3()).y;
+  const PAN_UP_FRACTION = 0.1;
+  const cameraTarget = new THREE.Vector3(0, boxCenterY, 0);
+
+  function refitFrustum(){
+    const aspect = heartWrap.clientWidth / heartWrap.clientHeight;
+    setCameraTransform(new THREE.Vector3(0, boxCenterY, 0));
+    frustumSize = computeFitFrustum(DEFAULT_BOX, aspect, FIT_PADDING);
+    cameraTarget.set(0, boxCenterY - frustumSize*PAN_UP_FRACTION, 0);
+    setCameraTransform(cameraTarget);
+    updateFrustum();
+  }
+
+  function ease(t){ return t<0.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+  let appState = "assembled"; // assembled|splitting|split|reassembling
+  let openModule = null;
+  const hint = document.getElementById("hint");
+  const groupCardsEl = document.getElementById("groupCards");
+
+  function startTween(phase){
+    const now = performance.now();
+    pieces.forEach(p => {
+      p.fromPos = p.mesh.position.clone();
+      p.tweenStart = now;
+      p.phase = phase;
+    });
+    appState = phase;
+    hint.style.opacity = "0";
+  }
+  function split(){ startTween("splitting"); }
+  function reassemble(){
+    startTween("reassembling");
+    stage.classList.remove("split");
+    groupCardsEl.classList.remove("visible");
+    linkOverlay.innerHTML = "";
+    if(openModule){
+      const el = groupCardsEl.querySelector(`.mod-row[data-key="${openModule}"]`);
+      if(el) el.classList.remove("open");
+      openModule = null;
+    }
+  }
+
+  /* =========================================================================
+     WIRE-TO-POPUP LINKS — projects each piece's dedicated downward link
+     trace (built in buildZonePiece) from 3D world space to on-screen pixel
+     coordinates, then draws an actual connecting wire down to that group's
+     card. #linkOverlay is position:fixed over the whole viewport
+     specifically so raw getBoundingClientRect() values — already
+     viewport-relative — can be used as-is, with no scroll-offset math.
+  ========================================================================= */
+  const linkOverlay = document.getElementById("linkOverlay");
+  function drawLinks(){
+    linkOverlay.innerHTML = "";
+    const canvasRect = canvas.getBoundingClientRect();
+    pieces.forEach(p => {
+      if(!p.linkAnchor) return;
+      const cardEl = document.getElementById("card-"+p.id);
+      if(!cardEl) return;
+      const world = p.linkAnchor.clone().applyMatrix4(p.mesh.matrixWorld);
+      const ndc = world.project(camera);
+      const sx = (ndc.x*0.5+0.5)*canvasRect.width + canvasRect.left;
+      const sy = (-ndc.y*0.5+0.5)*canvasRect.height + canvasRect.top;
+      const cardRect = cardEl.getBoundingClientRect();
+      const cx = cardRect.left + cardRect.width/2;
+      const cy = cardRect.top;
+      const midY = sy + (cy-sy)*0.55;
+      const accent = getComputedStyle(document.documentElement).getPropertyValue("--"+p.id).trim() || "#24344f";
+      linkOverlay.appendChild(svgEl("path", {
+        d:`M${sx},${sy} L${sx},${midY} L${cx},${midY} L${cx},${cy}`,
+        class:"link-wire", style:`stroke:${accent}`,
+      }));
+      linkOverlay.appendChild(svgEl("circle", { cx:sx, cy:sy, r:3.2, class:"link-dot", style:`fill:${accent}` }));
+      linkOverlay.appendChild(svgEl("circle", { cx:cx, cy:cy, r:3.2, class:"link-dot", style:`fill:${accent}` }));
+    });
+  }
+
+  const FLOAT_AMPLITUDE = 0.22, FLOAT_SPEED = 0.0011, BREATH_SPEED = 0.0009;
+
+  function tick(){
+    requestAnimationFrame(tick);
+    const now = performance.now();
+
+    // The idle float now keeps going in the split state too (not just
+    // assembled) — the whole heartGroup, split pieces and all, gently
+    // bobs together, since the tween that pulls the pieces apart already
+    // finished and left them just sitting still otherwise. It's suspended
+    // only during the splitting/reassembling tweens themselves, since
+    // those already drive their own arc motion on each piece individually
+    // and a second, competing Y offset on the parent would fight it.
+    if(appState === "splitting" || appState === "reassembling"){
+      heartGroup.position.y = 0;
+      heartGroup.scale.setScalar(1);
+    } else {
+      heartGroup.position.y = Math.sin(now*FLOAT_SPEED) * FLOAT_AMPLITUDE;
+      const breath = 1 + Math.sin(now*BREATH_SPEED)*0.015;
+      heartGroup.scale.setScalar(appState === "assembled" ? breath * (closedHover ? 1.045 : 1) : 1);
+    }
+
+    pieces.forEach(p => {
+      if(p.phase !== "splitting" && p.phase !== "reassembling") return;
+      const t = Math.min(1, (now-p.tweenStart)/DURATION);
+      const e = ease(t);
+      const target = p.phase === "splitting" ? new THREE.Vector3(SPLIT_OFFSET[p.id],0,0) : p.home;
+      p.mesh.position.lerpVectors(p.fromPos, target, e);
+      p.mesh.position.y += Math.sin(e*Math.PI) * ARC_HEIGHT * (p.phase==="splitting"?1:0.4);
+      if(t >= 1){ p.phase = p.phase==="splitting" ? "split" : "assembled"; p.mesh.position.copy(target); }
+    });
+
+    if(appState === "splitting" || appState === "reassembling"){
+      const stillGoing = pieces.some(p => p.phase==="splitting" || p.phase==="reassembling");
+      if(!stillGoing){
+        if(appState === "splitting"){
+          appState = "split";
+          stage.classList.add("split");
+          groupCardsEl.classList.add("visible");
+          hint.textContent = "Click a module for details · click elsewhere to reassemble";
+          hint.style.opacity = "1";
+        } else {
+          appState = "assembled";
+          hint.textContent = "Click the heart to explore PERSEVERE, PATHFINDER & SENTINEL";
+          hint.style.opacity = "1";
+        }
+      }
+    }
+
+    renderer.render(scene, camera);
+    // matrixWorld is only guaranteed up to date right after render() (which
+    // is what triggers Three.js's internal updateMatrixWorld pass), so the
+    // projection inside drawLinks() has to happen after this call, not
+    // before it.
+    if(appState === "split") drawLinks();
+  }
+
+  let downX=0, downY=0, downT=0;
+  canvas.addEventListener("pointerdown", (e) => { downX=e.clientX; downY=e.clientY; downT=performance.now(); });
+  canvas.addEventListener("pointerup", (e) => {
+    const dist = Math.hypot(e.clientX-downX, e.clientY-downY);
+    if(dist > 8 || performance.now()-downT > 500) return;
+    if(appState === "assembled") split();
+    else if(appState === "split") reassemble();
+  });
+
+  /* Hovering a piece of the heart emphasizes the card for the group that
+     piece belongs to (border glow + lift, see .grp-card.heart-hover) and
+     nudges the same piece's own material with a faint emissive tint, so
+     the 3D object and its panel visibly answer each other. Only active in
+     the split state — the pieces aren't distinct clickable targets worth
+     hovering before that, and the cards aren't even visible yet. */
+  const raycaster = new THREE.Raycaster();
+  function ndcFromEvent(e){
+    const rect = canvas.getBoundingClientRect();
+    return new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1, -((e.clientY-rect.top)/rect.height)*2+1);
+  }
+  let hoveredId = null;
+  function setHoveredZone(id){
+    if(hoveredId === id) return;
+    if(hoveredId){
+      const prevCard = document.getElementById("card-"+hoveredId);
+      if(prevCard) prevCard.classList.remove("heart-hover");
+      const prevPiece = pieces.find(p => p.id === hoveredId);
+      if(prevPiece) prevPiece.mesh.children[0].material.emissive.setHex(0x000000);
+    }
+    hoveredId = id;
+    if(id){
+      const card = document.getElementById("card-"+id);
+      if(card) card.classList.add("heart-hover");
+      const piece = pieces.find(p => p.id === id);
+      if(piece) piece.mesh.children[0].material.emissive.setHex(0x24334f);
+    }
+  }
+  // Before the first click, the whole heart is one solid clickable target
+  // (there's nothing to distinguish per-piece yet) — hovering it anywhere
+  // brightens every piece with the same emissive tint used per-piece above,
+  // plus a small extra scale bump on top of the idle breathing animation,
+  // so the still-closed heart visibly invites the click that opens it.
+  let closedHover = false;
+  function setClosedHover(hovered){
+    if(closedHover === hovered) return;
+    closedHover = hovered;
+    pieces.forEach(p => p.mesh.children[0].material.emissive.setHex(hovered ? 0x1c2c4a : 0x000000));
+  }
+  canvas.addEventListener("pointermove", (e) => {
+    if(appState === "split"){
+      setClosedHover(false);
+      raycaster.setFromCamera(ndcFromEvent(e), camera);
+      const hits = raycaster.intersectObjects(pieces.map(p => p.mesh.children[0]), false);
+      setHoveredZone(hits.length ? hits[0].object.userData.zoneId : null);
+    } else if(appState === "assembled"){
+      setHoveredZone(null);
+      raycaster.setFromCamera(ndcFromEvent(e), camera);
+      const hits = raycaster.intersectObjects(pieces.map(p => p.mesh.children[0]), false);
+      setClosedHover(hits.length > 0);
+    } else {
+      setHoveredZone(null);
+      setClosedHover(false);
+    }
+  });
+  canvas.addEventListener("pointerleave", () => { setHoveredZone(null); setClosedHover(false); });
+
+  function resize(){
+    renderer.setSize(heartWrap.clientWidth, heartWrap.clientHeight);
+    refitFrustum();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+  tick();
+
+  /* =========================================================================
+     CONTENT MODEL — identical to the Lego-brick build: same 3 groups, same
+     modules, same back-flip text, same detail-page links. Purely a visual
+     reskin, not a content fork.
+  ========================================================================= */
+  // One small line icon per module (feather/lucide-style, 24x24 stroke
+  // paths) so the row list reads at a glance instead of as a wall of text,
+  // plus a matching set for the shared Features/Deployment tags below.
+  const ICON_PILL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5 3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7Z"/><path d="m8.5 8.5 7 7"/></svg>`;
+  const ICON_CHIP = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>`;
+  const ICON_TARGET = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="0.6" fill="currentColor" stroke="none"/></svg>`;
+  const ICON_PULSE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>`;
+  const ICON_FLASK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6.343a2 2 0 0 1-.276 1.017L3.6 18.4A2 2 0 0 0 5.34 21.5h13.32a2 2 0 0 0 1.74-3.1l-5.124-9.04A2 2 0 0 1 15 8.343V2"/><path d="M8.5 2h7"/><path d="M7 15h10"/></svg>`;
+  const ICON_SEARCH = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>`;
+  const ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M8.2 7.2 15.8 10.8M8.2 16.8 15.8 13.2"/></svg>`;
+  const ICON_SHIELD_CHECK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5Z"/><path d="m9 12 2 2 4-4"/></svg>`;
+  const ICON_SHUFFLE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h4l9 16h3"/><path d="M4 16h4l2.2-4"/><path d="m17 4 3 3-3 3"/><path d="m17 20 3-3-3-3"/></svg>`;
+
+  const ICON_USER = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"/></svg>`;
+  const ICON_FLOW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h11"/></svg>`;
+  const ICON_BOLT = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>`;
+  const ICON_CLIPBOARD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="m9 13 2 2 4-4"/></svg>`;
+  const ICON_LINK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg>`;
+  const ICON_CLOUD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A4.5 4.5 0 0 0 6.5 19h11Z"/></svg>`;
+  const ICON_SHIELD_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5Z"/><rect x="9.5" y="11" width="5" height="4" rx="1"/><path d="M10.5 11V9.5a1.5 1.5 0 0 1 3 0V11"/></svg>`;
+  const ICON_LOCK = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+
+  // Replaces the old single GENERAL_FOOTER_TEXT sentence — same underlying
+  // facts (this project's features and deployment model, identical across
+  // every module), now as icon-tagged chips instead of one italic run-on.
+  const FEATURE_TAGS = [
+    { label:"Patient-personalized", icon:ICON_USER },
+    { label:"Workflow-integrated", icon:ICON_FLOW },
+    { label:"Immediately actionable", icon:ICON_BOLT },
+    { label:"Clinically justified", icon:ICON_CLIPBOARD },
+  ];
+  const DEPLOYMENT_TAGS = [
+    { label:"FHIR API interoperability", icon:ICON_LINK },
+    { label:"AWS Cloud & other cloud services", icon:ICON_CLOUD },
+    { label:"HIPAA certified", icon:ICON_SHIELD_LOCK },
+    { label:"Academic Medical Center cybersecurity standards", icon:ICON_LOCK },
+  ];
+
+  const GROUPS = [
+    {
+      id: "persevere", name: "PERSEVERE",
+      tagline: "Treatment optimization intelligence for HFrEF care.",
+      detailsUrl: "https://prime-yew-54311187.figma.site/case-evolution", detailsLabel: "Review a Case",
+      modules: [
+        { id:"med", name:"Treatment Optimization: Evidence-Based Medication", icon:ICON_PILL,
+          back:"Reports, for the 2025 HFrEF cohort, the type of medication optimization recommended — usual drug optimization (continue, introduce a new agent, or increase dose) versus safety/harm management (stop, decrease dose, or replace) — as of the most recent data pull." },
+        { id:"device", name:"Treatment Optimization: Device Eligibility", icon:ICON_CHIP,
+          back:"Reports, for the 2025 HFrEF cohort, how many patients qualify for one or more implantable devices, aggregated by device type. Some patients qualify for more than one device, as of the most recent data pull." },
+        { id:"procedure", name:"Treatment Optimization: Procedure Eligibility", icon:ICON_TARGET,
+          back:"Reports, for the 2025 HFrEF cohort, patients identified with severe AS, TR, or MR who are eligible for a structural heart procedure, as of the most recent data pull." },
+        { id:"advanced", name:"Treatment Optimization: Advanced Heart Failure Therapies", icon:ICON_PULSE,
+          back:"Reports, for the 2025 HFrEF cohort, patients identified as needing evaluation for LVAD or heart transplant, as of the most recent data pull." },
+        { id:"trial", name:"Treatment Optimization: Consideration for Clinical Trial Enrollment", icon:ICON_FLASK,
+          back:"Applies the general HF eligibility criteria to the 2025 HFrEF cohort and reports which patients are eligible for clinical trial enrollment, as of the most recent data pull." },
+      ],
+    },
+    {
+      id: "pathfinder", name: "PATHFINDER",
+      tagline: "Clinical care surveillance across the HFrEF population.",
+      detailsUrl: "pathfinder-radar.html", detailsLabel: "Volume & Actions",
+      modules: [
+        { id:"advance", name:"Clinical Care Surveillance to advance treatment optimization, personalized to each patient", icon:ICON_SEARCH,
+          back:"Surveils the treatment-optimization actions above — medication, device, procedure, advanced therapy, and trial-enrollment eligibility — and determines when each recommendation is ready for release, since these actions can run in parallel, overlap, or require a specific sequence." },
+        { id:"workflow", name:"Clinical Care Surveillance to improve care workflows, identify resource gaps, and streamline care coordination protocols", icon:ICON_SHARE,
+          back:"Surveils care delivery itself, not just treatment decisions — tracking HF, VHD, and CAD quality-measure reporting to identify workflow gaps and streamline care coordination." },
+      ],
+    },
+    {
+      id: "sentinel", name: "SENTINEL",
+      tagline: "Clinical trial eligibility & study design intelligence.",
+      detailsUrl: "sentinel.html", detailsLabel: "SENTINEL Program",
+      modules: [
+        { id:"screening", name:"Clinical Trial Eligibility Screening", icon:ICON_SHIELD_CHECK,
+          back:"Screens the HFrEF population for eligibility against active clinical trials — the same SENTINEL technology detailed on its dedicated page." },
+        { id:"hybrid", name:"Hybrid Randomized Clinical Trial Design Screening", icon:ICON_SHUFFLE,
+          back:"Adapts time-and-motion methodology to evaluate retrospective patient cases against the qualifying features of a trial's control cohort, supporting hybrid randomized trial designs." },
+      ],
+    },
+  ];
+
+  const ICON_ARROW = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
+
+  function renderGroupCards(){
+    groupCardsEl.innerHTML = GROUPS.map(g => `
+      <div class="grp-card" id="card-${g.id}" style="--accent:var(--${g.id})">
+        <div class="grp-header">
+          <span class="grp-dot"></span>
+          <h3>${g.name}</h3>
+        </div>
+        <p class="grp-tagline">${g.tagline}</p>
+        <div class="grp-modules">
+          ${g.modules.map(m => `
+            <div class="mod-row" data-key="${g.id}:${m.id}">
+              <div class="mod-row-head">
+                <div class="mod-name-wrap">
+                  <span class="mod-icon">${m.icon}</span>
+                  <span class="mod-name">${m.name}</span>
+                </div>
+                <span class="mod-chevron">${ICON_ARROW}</span>
+              </div>
+              <div class="mod-back-wrap">
+                <div class="mod-back-inner">
+                  <div class="mod-back">
+                    <p class="mod-back-text">${m.back}</p>
+                    <div class="mod-tags">
+                      <span class="mod-tags-label">Features</span>
+                      <div class="mod-tags-row">
+                        ${FEATURE_TAGS.map(t => `<span class="mod-tag">${t.icon}${t.label}</span>`).join("")}
+                      </div>
+                      <span class="mod-tags-label">Deployment</span>
+                      <div class="mod-tags-row">
+                        ${DEPLOYMENT_TAGS.map(t => `<span class="mod-tag">${t.icon}${t.label}</span>`).join("")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join("")}
+        </div>
+        <a class="grp-details" href="${g.detailsUrl}" target="_blank" rel="noopener">${g.detailsLabel} ${ICON_ARROW}</a>
+      </div>
+    `).join("");
+
+    // Clicking a row's head toggles it open, closing whichever module was
+    // previously open (only one open at a time). A click is deliberate, so
+    // the reflow this causes — pushing the rows below it down as it grows —
+    // doesn't fight the cursor the way it did when the same expand was
+    // hover-triggered.
+    groupCardsEl.querySelectorAll(".mod-row").forEach(row => {
+      const key = row.dataset.key;
+      row.querySelector(".mod-row-head").addEventListener("click", () => {
+        if(openModule === key){
+          row.classList.remove("open");
+          openModule = null;
+        } else {
+          if(openModule){
+            const prev = groupCardsEl.querySelector(`.mod-row[data-key="${openModule}"]`);
+            if(prev) prev.classList.remove("open");
+          }
+          row.classList.add("open");
+          openModule = key;
+        }
+      });
+    });
+    groupCardsEl.querySelectorAll(".grp-details").forEach(a => a.addEventListener("click", ev => ev.stopPropagation()));
+  }
+  renderGroupCards();
+
+  groupCardsEl.addEventListener("click", (e) => e.stopPropagation());
+  stage.addEventListener("click", () => { if(appState === "split") reassemble(); });
+})();
+</script>
+</body>
+</html>

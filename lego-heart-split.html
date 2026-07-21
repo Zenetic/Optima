@@ -43,9 +43,23 @@
     margin:0 auto; font-size:18px; font-weight:500; color:#5b6474; letter-spacing:-0.005em;
     max-width:900px; line-height:1.4; white-space:nowrap;
   }
+  /* This page previously had zero responsive handling — every other page
+     in the site has at least one breakpoint. Below ~960px the subtitle's
+     nowrap risks clipping against #titleBlock's max-width:90%, so past
+     that point we shrink both lines and let the subtitle wrap normally
+     instead of staying pinned to one line. */
+  @media (max-width:960px){
+    #pageTitle{ font-size:28px; }
+    #pageSubtitle{ font-size:15px; white-space:normal; max-width:90vw; }
+  }
+  @media (max-width:520px){
+    #pageTitle{ font-size:22px; }
+    #pageSubtitle{ font-size:13px; }
+    #titleBlock{ padding-top:32px; top:16px; }
+  }
   #illustrationCopyright{
     position:absolute; right:16px; bottom:12px; z-index:15; pointer-events:none;
-    font-size:11px; color:#9aa3b2; letter-spacing:0.01em;
+    font-size:11px; color:#5f6b7a; letter-spacing:0.01em;
   }
   #hint{
     position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
@@ -54,11 +68,15 @@
     border:1px solid rgba(0,0,0,0.06); z-index:20; white-space:nowrap;
   }
 
-  /* ---------- close button (focused view only, top right) ---------- */
+  /* ---------- close button (focused view only, top right) ----------
+     40x40 — brought up from 36x36 as part of a site-wide close-button pass
+     (also touches .fp-close below and .sc-demo-popup-close in
+     site-chrome.css) to get every dismiss control closer to a comfortable
+     tap target instead of each having its own one-off size. */
   #backBtn{
     position:absolute; top:22px; right:22px; z-index:30;
     display:flex; align-items:center; justify-content:center;
-    width:36px; height:36px; border-radius:50%;
+    width:40px; height:40px; border-radius:50%;
     background:rgba(15,27,61,0.78); color:#fff; font-size:20px; font-weight:400; line-height:1;
     backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.15);
     cursor:pointer; opacity:0; pointer-events:none; transform:translateX(10px);
@@ -149,9 +167,9 @@
     100%{ transform:translateY(0) scale(1); box-shadow:0 24px 55px -18px rgba(15,27,61,0.45); }
   }
   .fp-close{
-    position:absolute; top:-13px; right:-13px; width:26px; height:26px; border-radius:50%;
+    position:absolute; top:-16px; right:-16px; width:32px; height:32px; border-radius:50%;
     background:#0f1b3d; color:#fff; display:flex; align-items:center; justify-content:center;
-    font-size:13px; cursor:pointer; box-shadow:0 8px 18px -4px rgba(15,27,61,0.5); z-index:1;
+    font-size:15px; cursor:pointer; box-shadow:0 8px 18px -4px rgba(15,27,61,0.5); z-index:1;
   }
   .fp-card{
     --accent:#1c4d84;
@@ -201,7 +219,7 @@
 <div id="site-header"></div>
 <div id="stage">
   <div id="titleBlock">
-    <h1 id="pageTitle">Clinical Reasoning, applied everywhere care decision are needed.</h1>
+    <h1 id="pageTitle">Clinical Reasoning, applied wherever care decisions are needed.</h1>
     <p id="pageSubtitle">Care optimization, quality surveillance, and trial enrollment — powered by a single clinical reasoning engine.</p>
   </div>
   <div id="hint"></div>
