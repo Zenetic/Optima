@@ -57,8 +57,12 @@
     #pageSubtitle{ font-size:13px; }
     #titleBlock{ padding-top:32px; top:16px; }
   }
+  /* No longer absolutely positioned inside #stage (which overlapped the
+     canvas at the bottom-right, sometimes clipping into the heart itself).
+     Now a normal flow row of its own, between the stage and the footer, so
+     it always sits clear below the illustration. */
   #illustrationCopyright{
-    position:absolute; right:16px; bottom:12px; z-index:15; pointer-events:none;
+    flex:none; text-align:right; padding:6px 24px; z-index:15; pointer-events:none;
     font-size:11px; color:#5f6b7a; letter-spacing:0.01em;
   }
   #hint{
@@ -227,8 +231,8 @@
   <div id="tooltip"><div class="tt-title"></div><div class="tt-desc"></div></div>
   <div id="featurePopup"></div>
   <div id="groupLabels"></div>
-  <div id="illustrationCopyright">&copy; 2026 Optima Integrated Health &mdash; interactive heart illustration</div>
 </div>
+<div id="illustrationCopyright">&copy; 2026 Optima Integrated Health &mdash; interactive heart illustration</div>
 <div id="site-footer"></div>
 <!-- site-chrome.js runs here, AFTER both #site-header and #site-footer exist
      in the DOM (so it can mount into both) but BEFORE the Three.js init

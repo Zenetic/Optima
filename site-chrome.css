@@ -108,9 +108,13 @@ html{ overflow-y:auto; scrollbar-gutter:stable; }
 .sc-footer-col a:hover{ color:#1f1f1f; text-decoration:underline; }
 
 .sc-footer-divider{ max-width:1312px; margin:18px auto 0; height:1px; background:#e0e0e5; }
+/* space-between (not centered) so the copyright line sits flush left and
+   the address sits flush right — matching the same max-width:1312px +
+   64px horizontal padding as .sc-footer-cols above, so both edges line up
+   with the columns block instead of floating centered as one group. */
 .sc-footer-bottom{
   max-width:1312px; margin:0 auto; padding:12px 64px 18px;
-  display:flex; gap:32px; justify-content:center; flex-wrap:wrap;
+  display:flex; gap:32px; justify-content:space-between; flex-wrap:wrap;
 }
 .sc-footer-bottom p{ margin:0; font-size:12px; color:#6b7280; white-space:nowrap; }
 
