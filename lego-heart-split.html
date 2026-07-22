@@ -547,57 +547,88 @@
     };
   }
 
-  // How many world-space Y units to shift a box's framing target upward so
-  // the box's own TRUE top edge clears the title block on screen (with the
-  // buffer above), for a given aspect/padding. Two passes: the first
-  // measures where the un-biased box would land, the second corrects using
-  // the actual measured pixel error — biasing only repositions the box
-  // (its size, and so the fitted frustum size, barely changes), so this
-  // converges essentially exactly without needing more than two passes.
-  // This replaces hand-tuned world-unit constants (previously a single
-  // ASSEMBLED_Y_BIAS, picked by trial and error against one screen size)
-  // with a value derived from what's actually on screen right now.
+  // Pixels of breathing room to keep clear at the BOTTOM of the stage. The
+  // stage is a flex:1 sibling strictly between the header and the footer
+  // (body is a flex column: header / stage / copyright / footer, each with
+  // its own reserved height), so nothing drawn inside it can ever overlap
+  // the footer via CSS layout — but the camera's own frustum can still
+  // place content right up against the stage's own bottom EDGE, which sits
+  // flush against the footer, reading as "cropped by the footer" even
+  // though no element actually overlaps. This buffer keeps a gap there too.
+  const STAGE_BOTTOM_BUFFER_PX = 40;
+
+  // How many world-space Y units to shift a box's framing target so its
+  // TRUE vertical extent sits CENTERED between the title block (above) and
+  // the stage's own bottom edge (below), for a given aspect/padding.
+  //
+  // This replaces an earlier version that only pushed the box down until
+  // its top cleared the title, with no awareness of the bottom at all. That
+  // was a one-sided fix: decentering a box within a fixed-size frustum
+  // necessarily eats into the margin on the OPPOSITE side by the same
+  // amount, so a bias large enough to satisfy a strict top-clearance check
+  // (especially once corner-based measurement below found the true top
+  // reaching higher than a center-point check had assumed) could push the
+  // box's bottom past the stage's own bottom edge — which is exactly what
+  // happened: the heart cleared the title but then read as cropped by the
+  // footer just below it. Centering the box in the available band instead
+  // balances both sides rather than resolving one at the other's expense.
+  //
+  // Single pass, not iterative: biasing only shifts a box's Y position, not
+  // its size, and both the box and the camera/target shift together by the
+  // exact same amount — so the box's shape relative to the camera (and
+  // therefore the fitted frustum size) is provably bias-invariant. One
+  // measurement at bias=0 is enough to compute the exact correction.
+  //
   // sizeBox drives the camera target/zoom (the box actually being framed).
-  // clearanceBox is what must clear the title — normally the same box, but
-  // the focused view needs these to differ: the camera zooms toward a
-  // SHRUNK box around the focused group (so the composition reads as
-  // "zoomed in"), while the other two groups stay at their full, unshrunk
-  // split-state size/position (rendered blurred, per the original design,
-  // rather than being clipped from view). Checking clearance against the
-  // shrunk sizeBox's own top ignores those still-full-size groups, which
-  // can poke above the frame once the camera zooms in around them — passing
-  // the true full-spread box (DEFAULT_BOX_RAW) as clearanceBox fixes that.
+  // clearanceBox is what must fit in the available band — normally the same
+  // box, but the focused view needs these to differ: the camera zooms
+  // toward a SHRUNK box around the focused group (so the composition reads
+  // as "zoomed in"), while the other two groups stay at their full,
+  // unshrunk split-state size/position (rendered blurred, per the original
+  // design, rather than being clipped from view). Centering the shrunk
+  // sizeBox's own extent would ignore those still-full-size groups, which
+  // can poke outside the frame once the camera zooms in around them —
+  // passing the true full-spread box (DEFAULT_BOX_RAW) as clearanceBox
+  // fixes that.
   function computeTopClearBias(sizeBox, aspect, padding, clearanceBox){
     clearanceBox = clearanceBox || sizeBox;
-    const reserved = reservedTopPx();
-    // All 4 top corners, not just the box's top-center — this is an
+    const topLimit = reservedTopPx();
+    const bottomLimit = stage.clientHeight - STAGE_BOTTOM_BUFFER_PX;
+    const desiredCenterPx = (topLimit + bottomLimit) / 2;
+
+    // All 4 top AND bottom corners, not just the box's center — this is an
     // isometric (rotated) camera, so for a box that's WIDE in X (like the
-    // full 3-group split spread), the point that actually projects highest
-    // on screen is often a top CORNER, not the geometric top-center. Using
-    // only the center point under-measured how high the box's true topmost
-    // visible corner reached, which under-corrected the bias.
-    const topCorners = [
+    // full 3-group split spread), the points that actually project
+    // highest/lowest on screen are often corners, not the geometric
+    // top-center/bottom-center. We center the MIDPOINT of the box's true
+    // on-screen top and bottom extremes, so a tall box gets balanced margin
+    // on both sides rather than just its raw centroid (which can sit off
+    // from the visual middle once the isometric rotation skews the shape).
+    const corners = [
+      [clearanceBox.min.x, clearanceBox.min.y, clearanceBox.min.z],
+      [clearanceBox.min.x, clearanceBox.min.y, clearanceBox.max.z],
+      [clearanceBox.max.x, clearanceBox.min.y, clearanceBox.min.z],
+      [clearanceBox.max.x, clearanceBox.min.y, clearanceBox.max.z],
       [clearanceBox.min.x, clearanceBox.max.y, clearanceBox.min.z],
       [clearanceBox.min.x, clearanceBox.max.y, clearanceBox.max.z],
       [clearanceBox.max.x, clearanceBox.max.y, clearanceBox.min.z],
       [clearanceBox.max.x, clearanceBox.max.y, clearanceBox.max.z],
     ].map(([x,y,z]) => new THREE.Vector3(x,y,z));
-    let bias = 0;
-    for(let i = 0; i < 3; i++){
-      const shifted = new THREE.Box3(
-        sizeBox.min.clone().setY(sizeBox.min.y + bias),
-        sizeBox.max.clone().setY(sizeBox.max.y + bias)
-      );
-      const target = shifted.getCenter(new THREE.Vector3());
-      setCameraTransform(target);
-      const fSize = computeFitFrustum(shifted, aspect, padding);
-      frustumSize = fSize; updateFrustum();
-      let topPx = Infinity;
-      topCorners.forEach(c => { topPx = Math.min(topPx, projectToStagePx(c).y); });
-      const errorPx = reserved - topPx; // positive => real top edge still above the reserved line
-      bias += errorPx * (fSize / stage.clientHeight);
-    }
-    return Math.max(0, bias);
+
+    const target = sizeBox.getCenter(new THREE.Vector3());
+    setCameraTransform(target);
+    const fSize = computeFitFrustum(sizeBox, aspect, padding);
+    frustumSize = fSize; updateFrustum();
+
+    let minPx = Infinity, maxPx = -Infinity;
+    corners.forEach(c => {
+      const y = projectToStagePx(c).y;
+      minPx = Math.min(minPx, y);
+      maxPx = Math.max(maxPx, y);
+    });
+    const currentCenterPx = (minPx + maxPx) / 2;
+    const errorPx = desiredCenterPx - currentCenterPx;
+    return errorPx * (fSize / stage.clientHeight);
   }
 
   // Was Math.PI (~3.14) — a leftover conversion factor from porting this
