@@ -953,7 +953,28 @@
     backBtn.classList.add("visible");
     setupBlurLayer();
     currentPadding = 1.15;
-    const focusBox = lerpBoxCenterSize(DEFAULT_BOX, sideSplitBox(side), 0.55, 0.42);
+    // Was lerping from DEFAULT_BOX (already biased) with sideSplitBox(side)
+    // (raw/unbiased) — a blend of a biased and an unbiased box only
+    // partially inherits the title-clearing correction, which is why the
+    // blurred, unfocused groups in this view could still poke into the
+    // title even after the plain split view was fixed. Lerp from the RAW
+    // box instead, then give this specific (per-click, differently shaped)
+    // focus framing its own dedicated bias — same treatment as the
+    // assembled/split boxes get above.
+    const focusBoxRaw = lerpBoxCenterSize(DEFAULT_BOX_RAW, sideSplitBox(side), 0.55, 0.42);
+    const aspect = stage.clientWidth / stage.clientHeight;
+    // computeTopClearBias probes by actually moving the camera and
+    // frustumSize as scratch state — save/restore both around the call so
+    // startCameraTween (right after) captures the REAL current split-view
+    // state as its tween start point, not whatever the last probe left
+    // behind (which would otherwise show up as a small visual jump/glitch
+    // at the start of the focus transition).
+    const savedTarget = currentCameraTarget.clone();
+    const savedFrustum = frustumSize;
+    const focusBias = computeTopClearBias(focusBoxRaw, aspect, currentPadding);
+    setCameraTransform(savedTarget);
+    frustumSize = savedFrustum; updateFrustum();
+    const focusBox = biasedBox(focusBoxRaw, focusBias);
     startCameraTween(focusBox, currentPadding, FOCUS_DURATION, () => { appState = "focused"; });
   }
 
