@@ -557,16 +557,27 @@
   // This replaces hand-tuned world-unit constants (previously a single
   // ASSEMBLED_Y_BIAS, picked by trial and error against one screen size)
   // with a value derived from what's actually on screen right now.
-  function computeTopClearBias(realBox, aspect, padding){
+  // sizeBox drives the camera target/zoom (the box actually being framed).
+  // clearanceBox is what must clear the title — normally the same box, but
+  // the focused view needs these to differ: the camera zooms toward a
+  // SHRUNK box around the focused group (so the composition reads as
+  // "zoomed in"), while the other two groups stay at their full, unshrunk
+  // split-state size/position (rendered blurred, per the original design,
+  // rather than being clipped from view). Checking clearance against the
+  // shrunk sizeBox's own top ignores those still-full-size groups, which
+  // can poke above the frame once the camera zooms in around them — passing
+  // the true full-spread box (DEFAULT_BOX_RAW) as clearanceBox fixes that.
+  function computeTopClearBias(sizeBox, aspect, padding, clearanceBox){
+    clearanceBox = clearanceBox || sizeBox;
     const reserved = reservedTopPx();
     const topCenter = new THREE.Vector3(
-      (realBox.min.x + realBox.max.x) / 2, realBox.max.y, (realBox.min.z + realBox.max.z) / 2
+      (clearanceBox.min.x + clearanceBox.max.x) / 2, clearanceBox.max.y, (clearanceBox.min.z + clearanceBox.max.z) / 2
     );
     let bias = 0;
     for(let i = 0; i < 2; i++){
       const shifted = new THREE.Box3(
-        realBox.min.clone().setY(realBox.min.y + bias),
-        realBox.max.clone().setY(realBox.max.y + bias)
+        sizeBox.min.clone().setY(sizeBox.min.y + bias),
+        sizeBox.max.clone().setY(sizeBox.max.y + bias)
       );
       const target = shifted.getCenter(new THREE.Vector3());
       setCameraTransform(target);
@@ -971,7 +982,12 @@
     // at the start of the focus transition).
     const savedTarget = currentCameraTarget.clone();
     const savedFrustum = frustumSize;
-    const focusBias = computeTopClearBias(focusBoxRaw, aspect, currentPadding);
+    // Zoom/target come from focusBoxRaw (the shrunk, "zoomed toward this
+    // group" box), but clearance is checked against DEFAULT_BOX_RAW — the
+    // OTHER two groups stay at their full, un-shrunk split positions
+    // (rendered blurred, not clipped), so they're what can actually poke
+    // into the title once the camera zooms in, not the smaller focus box.
+    const focusBias = computeTopClearBias(focusBoxRaw, aspect, currentPadding, DEFAULT_BOX_RAW);
     setCameraTransform(savedTarget);
     frustumSize = savedFrustum; updateFrustum();
     const focusBox = biasedBox(focusBoxRaw, focusBias);
