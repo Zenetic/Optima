@@ -35,23 +35,6 @@
     padding-top:48px;
     text-align:center; pointer-events:none; z-index:20; max-width:90%;
     font-family:'Inter', -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    border-radius:22px;
-    transition:background .3s ease, box-shadow .3s ease, backdrop-filter .3s ease;
-  }
-  /* Frosted-glass card behind the title/subtitle, toggled on for as long as
-     the heart is expanded (splitting through split/focus/unfocus, back off
-     once fully reassembled) — the split heart's bricks can pass close to or
-     behind the text while animating, so this keeps the text legible against
-     the moving brick colors instead of relying on plain page background. */
-  #titleBlock.glass{
-    background:rgba(255,255,255,0.5);
-    backdrop-filter:blur(18px) saturate(160%);
-    -webkit-backdrop-filter:blur(18px) saturate(160%);
-    box-shadow:0 12px 34px -14px rgba(15,27,61,0.22), inset 0 1px 0 rgba(255,255,255,0.6);
-    /* Left/right/bottom only — padding-top is left alone so the mobile
-       breakpoints' own padding-top (32px/48px) still wins there instead of
-       this rule's higher ID+class specificity silently overriding it. */
-    padding-left:32px; padding-right:32px; padding-bottom:24px;
   }
   #pageTitle{
     margin:0 0 10px; font-size:40px; font-weight:700; color:#0f1b3d; letter-spacing:-0.01em;
@@ -764,7 +747,16 @@
   function sideSplitBox(side){
     const box = new THREE.Box3();
     bricks.filter(b => b.side===side).forEach(b => {
-      const hx = BRICK*(b.len-0.1)/2, hy = BRICK*0.9/2 + ARC_HEIGHT*0.3, hz = BRICK*0.9/2;
+      // hy's ARC_HEIGHT term was only 0.3x — but the actual splitting-phase
+      // brick tween (below, in the tick loop) lifts every brick by a FULL
+      // 1x ARC_HEIGHT at the arc's peak (reassembling uses 0.4x). That 0.7x
+      // shortfall meant the framing box — and everything computed from it,
+      // including the title-clearing bias — never accounted for how high
+      // the bricks actually rise mid-transition, so the heart could still
+      // visually poke into the title while animating even though the
+      // resting split state fit fine. Using the full ARC_HEIGHT here covers
+      // the worst case (splitting) so the whole transition stays framed.
+      const hx = BRICK*(b.len-0.1)/2, hy = BRICK*0.9/2 + ARC_HEIGHT, hz = BRICK*0.9/2;
       const x = b.home.x + GROUP_OFFSET[side];
       box.expandByPoint(new THREE.Vector3(x-hx, b.home.y-hy, b.home.z-hz));
       box.expandByPoint(new THREE.Vector3(x+hx, b.home.y+hy, b.home.z+hz));
@@ -783,7 +775,10 @@
   function assembledBox(){
     const box = new THREE.Box3();
     bricks.forEach(b => {
-      const hx = BRICK*(b.len-0.1)/2, hy = BRICK*0.9/2 + ARC_HEIGHT*0.3, hz = BRICK*0.9/2;
+      // Same full-ARC_HEIGHT buffer as sideSplitBox above, for the same
+      // reason (covers the reassembling-phase arc, so the closed-heart
+      // framing doesn't underestimate it either).
+      const hx = BRICK*(b.len-0.1)/2, hy = BRICK*0.9/2 + ARC_HEIGHT, hz = BRICK*0.9/2;
       box.expandByPoint(new THREE.Vector3(b.home.x-hx, b.home.y-hy, b.home.z-hz));
       box.expandByPoint(new THREE.Vector3(b.home.x+hx, b.home.y+hy, b.home.z+hz));
     });
@@ -912,10 +907,6 @@
     startBrickTween("splitting");
     currentPadding = SPLIT_PADDING;
     startCameraTween(DEFAULT_BOX, SPLIT_PADDING, DURATION, null);
-    // On for the whole expanded lifecycle (splitting → split → focus/unfocus
-    // → reassembling) — removed only once fully back to "assembled" (below,
-    // in the tick() transition where that phase completes).
-    titleBlock.classList.add("glass");
   }
   function reassemble(){
     startBrickTween("reassembling");
@@ -1299,7 +1290,6 @@
           // stays hidden here (still used for the split-state hint above).
           hint.textContent = "";
           hint.style.opacity = "0";
-          titleBlock.classList.remove("glass"); // back to the plain title once fully reassembled
         }
       }
     }
