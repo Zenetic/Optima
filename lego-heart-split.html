@@ -447,28 +447,22 @@
     const base = new THREE.Color(baseHex);
     const hsl = {};
     base.getHSL(hsl);
-    // Calibrated against the actual reference (prime-yew-54311187.figma.
-    // site/plug-and-play): sampled ~56k opaque pixels from a screenshot of
-    // its rendered heart — hue clustered at ~208–220° (matching this
-    // project's own ~212° palette), true brick-face lightness ran from
-    // about 0.17 (darkest navy) up to about 0.65–0.70 (lightest solid blue).
-    // A previous attempt used these same numbers but the RESULT still
-    // clipped to white — not because the numbers were wrong, but because
-    // this scene's lighting was over-boosted (LEGACY_LIGHT_COMPENSATION,
-    // above, was multiplying the key/fill lights by ~3x), which mathematically
-    // clipped anything lighter than about L≈0.30 regardless of the material
-    // color fed in. With that compensation now removed, this same reference-
-    // matched range has real headroom to render without clipping. `t` is
+    // The over-boosted lighting (LEGACY_LIGHT_COMPENSATION, above) has now
+    // been fixed, so the previous white/cyan clipping is gone — but once
+    // that clipping stopped hiding it, the reference-sampled range (up to
+    // L≈0.68) still read as brighter/more vivid than the reference itself,
+    // which is mostly a moderate, fairly muted blue rather than a vivid
+    // one. Dialed the ceiling and saturation back down accordingly. `t` is
     // normalized to -1..1 regardless of a group's module count (PERSEVERE
     // has 4 modules, PATHFINDER/SENTINEL have 2 each) so every group spans
     // the same range consistently.
-    const LIGHTNESS_CENTER = 0.43;
-    const LIGHTNESS_SPREAD = 0.25;
+    const LIGHTNESS_CENTER = 0.34;
+    const LIGHTNESS_SPREAD = 0.19;
     const palette = [];
     for(let i=0;i<count;i++){
       const t = count > 1 ? (i - (count-1)/2) / ((count-1)/2) : 0; // normalized to -1..1
-      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.17, 0.68);
-      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.08, 0.4, 0.66);
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.15, 0.53);
+      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.08, 0.38, 0.58);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
@@ -542,7 +536,7 @@
   function reservedTopPx(){
     const stageTop = stage.getBoundingClientRect().top;
     const titleBottom = titleBlock.getBoundingClientRect().bottom;
-    return Math.max(0, titleBottom - stageTop) + 24;
+    return Math.max(0, titleBottom - stageTop) + 40;
   }
 
   function projectToStagePx(worldPoint){
@@ -798,7 +792,7 @@
   // between the title and the footer, no amount of repositioning avoids an
   // overlap. Actually reducing the on-screen size gives it real room.
   const ASSEMBLED_PADDING = 1.12;
-  const SPLIT_PADDING = 1.4;
+  const SPLIT_PADDING = 1.7; // bumped again from 1.4 — still wasn't enough clearance in practice
 
   // Both the closed (assembled) and expanded (split) framings get their
   // camera target biased upward — by however many world units are actually
@@ -1350,6 +1344,18 @@
   }
   window.addEventListener("resize", handleResize);
   renderer.setSize(stage.clientWidth, stage.clientHeight);
+
+  // The title/subtitle load the real Inter webfont asynchronously (Google
+  // Fonts <link>, not blocking initial render) — the page first lays out
+  // #titleBlock with a fallback font, THEN swaps to Inter once it arrives,
+  // which can change the title's rendered height. The bias computed at
+  // script-init time (above) measured whatever was true at that instant, so
+  // without this, a late font swap could leave the split/assembled framing
+  // clearing a title height that no longer matches reality — reusing
+  // handleResize here re-measures and reframes once the swap actually lands.
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(handleResize);
+  }
 })();
 </script>
 </body>
