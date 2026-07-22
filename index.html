@@ -570,11 +570,20 @@
   function computeTopClearBias(sizeBox, aspect, padding, clearanceBox){
     clearanceBox = clearanceBox || sizeBox;
     const reserved = reservedTopPx();
-    const topCenter = new THREE.Vector3(
-      (clearanceBox.min.x + clearanceBox.max.x) / 2, clearanceBox.max.y, (clearanceBox.min.z + clearanceBox.max.z) / 2
-    );
+    // All 4 top corners, not just the box's top-center — this is an
+    // isometric (rotated) camera, so for a box that's WIDE in X (like the
+    // full 3-group split spread), the point that actually projects highest
+    // on screen is often a top CORNER, not the geometric top-center. Using
+    // only the center point under-measured how high the box's true topmost
+    // visible corner reached, which under-corrected the bias.
+    const topCorners = [
+      [clearanceBox.min.x, clearanceBox.max.y, clearanceBox.min.z],
+      [clearanceBox.min.x, clearanceBox.max.y, clearanceBox.max.z],
+      [clearanceBox.max.x, clearanceBox.max.y, clearanceBox.min.z],
+      [clearanceBox.max.x, clearanceBox.max.y, clearanceBox.max.z],
+    ].map(([x,y,z]) => new THREE.Vector3(x,y,z));
     let bias = 0;
-    for(let i = 0; i < 2; i++){
+    for(let i = 0; i < 3; i++){
       const shifted = new THREE.Box3(
         sizeBox.min.clone().setY(sizeBox.min.y + bias),
         sizeBox.max.clone().setY(sizeBox.max.y + bias)
@@ -583,7 +592,8 @@
       setCameraTransform(target);
       const fSize = computeFitFrustum(shifted, aspect, padding);
       frustumSize = fSize; updateFrustum();
-      const { y: topPx } = projectToStagePx(topCenter);
+      let topPx = Infinity;
+      topCorners.forEach(c => { topPx = Math.min(topPx, projectToStagePx(c).y); });
       const errorPx = reserved - topPx; // positive => real top edge still above the reserved line
       bias += errorPx * (fSize / stage.clientHeight);
     }
