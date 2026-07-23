@@ -31,9 +31,9 @@
      sits right below the title regardless of whether the (longer, new)
      headline wraps to one line or two at a given viewport width. */
   #titleBlock{
-    position:absolute; top:26px; left:50%; transform:translateX(-50%);
-    padding-top:48px;
-    text-align:center; pointer-events:none; z-index:20; max-width:90%;
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    padding-top:22px;
+    text-align:center; pointer-events:none; z-index:20; max-width:96%;
     font-family:'Inter', -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   }
   #pageTitle{
@@ -43,30 +43,47 @@
     margin:0 auto; font-size:18px; font-weight:500; color:#5b6474; letter-spacing:-0.005em;
     max-width:900px; line-height:1.4; white-space:nowrap;
   }
+  /* The part after the dash gets real visual weight of its own — bigger,
+     bolder, and a dark navy instead of the muted gray the rest of the line
+     uses — so it reads as the headline's second, stronger beat rather than
+     a continuation clause. */
+  #pageSubtitleStrong{
+    font-size:20px; font-weight:700; color:#1c2942;
+  }
   /* This page previously had zero responsive handling — every other page
      in the site has at least one breakpoint. Below ~960px the subtitle's
-     nowrap risks clipping against #titleBlock's max-width:90%, so past
+     nowrap risks clipping against #titleBlock's max-width:96%, so past
      that point we shrink both lines and let the subtitle wrap normally
      instead of staying pinned to one line. */
   @media (max-width:960px){
     #pageTitle{ font-size:28px; }
     #pageSubtitle{ font-size:15px; white-space:normal; max-width:90vw; }
+    #pageSubtitleStrong{ font-size:16px; }
   }
   @media (max-width:520px){
     #pageTitle{ font-size:22px; }
     #pageSubtitle{ font-size:13px; }
-    #titleBlock{ padding-top:32px; top:16px; }
+    #pageSubtitleStrong{ font-size:14px; }
+    #titleBlock{ padding-top:14px; top:6px; }
   }
-  /* No longer absolutely positioned inside #stage (which overlapped the
-     canvas at the bottom-right, sometimes clipping into the heart itself).
-     Now a normal flow row of its own, between the stage and the footer, so
-     it always sits clear below the illustration. Centered (like a photo
-     caption) rather than right-aligned — the heart itself renders roughly
-     centered in the stage, so a right-pinned note read as floating off to
-     the side instead of belonging to the image above it. */
+  /* Back to being positioned inside #stage (previously moved out into its
+     own centered flow row below the stage, since an earlier absolute
+     placement had it right-pinned in a way that overlapped the heart).
+     This time it's a narrow column pinned to the stage's bottom-right —
+     "bottom" matched to the same STAGE_BOTTOM_BUFFER_PX margin the heart's
+     own framing already keeps clear at the bottom of the stage (see
+     computeTopClearBias in the script below), so the note lines up with
+     roughly where the heart's own bottom edge sits, without the two ever
+     overlapping (narrow max-width keeps it out of the heart's horizontal
+     space, and pointer-events:none keeps it from blocking clicks on
+     whatever's beneath it). */
   #illustrationCopyright{
-    flex:none; text-align:center; padding:6px 24px; z-index:15; pointer-events:none;
-    font-size:11px; color:#5f6b7a; letter-spacing:0.01em;
+    position:absolute; right:24px; bottom:22px; z-index:15; pointer-events:none;
+    max-width:190px; text-align:right;
+    font-size:11px; color:#5f6b7a; letter-spacing:0.01em; line-height:1.4;
+  }
+  @media (max-width:720px){
+    #illustrationCopyright{ display:none; } /* not enough width for a side column without crowding the heart */
   }
   #hint{
     position:absolute; bottom:26px; left:50%; transform:translateX(-50%);
@@ -222,16 +239,24 @@
 <div id="site-header"></div>
 <div id="stage">
   <div id="titleBlock">
-    <h1 id="pageTitle">Clinical Reasoning, applied wherever care decisions are needed.</h1>
-    <p id="pageSubtitle">Care optimization, quality surveillance, and trial enrollment — powered by a single clinical reasoning engine.</p>
+    <!-- Only ONE breakable space in the whole headline — the one right
+         after "Reasoning,". Every later space is a non-breaking &nbsp;, so
+         the browser has nowhere else it CAN wrap to: the line stays intact
+         until it doesn't fit at all, and the instant it doesn't, it breaks
+         exactly at "Clinical Reasoning," / "applied wherever...", never at
+         some other word. No media query needed to control the break point. -->
+    <h1 id="pageTitle">Clinical Reasoning, applied&nbsp;wherever&nbsp;care&nbsp;decisions&nbsp;are&nbsp;needed.</h1>
+    <!-- Second half (after the dash) is wrapped so it can be styled bigger
+         and in a stronger color than the first half, per spec. -->
+    <p id="pageSubtitle">Comprehensive HF Management <span id="pageSubtitleStrong">— powered by a single clinical reasoning engine.</span></p>
   </div>
   <div id="hint"></div>
   <button id="backBtn" type="button" aria-label="Close">&times;</button>
   <div id="tooltip"><div class="tt-title"></div><div class="tt-desc"></div></div>
   <div id="featurePopup"></div>
   <div id="groupLabels"></div>
+  <div id="illustrationCopyright">&copy; 2026 Optima Integrated Health &mdash; interactive heart illustration</div>
 </div>
-<div id="illustrationCopyright">&copy; 2026 Optima Integrated Health &mdash; interactive heart illustration</div>
 <div id="site-footer"></div>
 <!-- site-chrome.js runs here, AFTER both #site-header and #site-footer exist
      in the DOM (so it can mount into both) but BEFORE the Three.js init
@@ -367,8 +392,13 @@
       color: 0x123553,
       statTag: "HFrEF-focused",
       tagline: "Treatment optimization intelligence for HFrEF care.",
-      detailsUrl: "reviewacase.html",
-      detailsLabel: "Review a Case",
+      // detailsUrl/detailsLabel now point every group's feature-card CTA at
+      // the shared Request Demo form instead of that group's own detail
+      // page — the detail pages (reviewacase.html etc.) are still reachable
+      // via the header's Capabilities dropdown and the footer, just not
+      // from this specific CTA anymore.
+      detailsUrl: "request-demo.html",
+      detailsLabel: "Request Demo",
       modules: [
         { id:"med", name:"Treatment Optimization: Evidence-Based Medication", icon:ICON_PILL,
           back:"Reports, for the 2025 HFrEF cohort, the type of medication optimization recommended — usual drug optimization (continue, introduce a new agent, or increase dose) versus safety/harm management (stop, decrease dose, or replace) — as of the most recent data pull." },
@@ -386,8 +416,8 @@
       color: 0x1c4d84,
       statTag: "Surveillance",
       tagline: "Clinical care surveillance across the HFrEF population.",
-      detailsUrl: "pathfinder-radar.html",
-      detailsLabel: "Volume & Actions",
+      detailsUrl: "request-demo.html",
+      detailsLabel: "Request Demo",
       modules: [
         { id:"advance", name:"Clinical Care Surveillance to advance treatment optimization, personalized to each patient", icon:ICON_SEARCH,
           back:"Surveils the treatment-optimization actions above — medication, device, procedure, advanced therapy, and trial-enrollment eligibility — and determines when each recommendation is ready for release, since these actions can run in parallel, overlap, or require a specific sequence." },
@@ -401,8 +431,8 @@
       color: 0x3b80ce,
       statTag: "Trial-ready",
       tagline: "Clinical trial eligibility & study design intelligence.",
-      detailsUrl: "sentinel.html",
-      detailsLabel: "SENTINEL Program",
+      detailsUrl: "request-demo.html",
+      detailsLabel: "Request Demo",
       modules: [
         { id:"screening", name:"Clinical Trial Eligibility Screening", icon:ICON_SHIELD_CHECK,
           back:"Screens the HFrEF population for eligibility against active clinical trials — the same SENTINEL technology detailed on its dedicated page." },
