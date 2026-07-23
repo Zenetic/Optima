@@ -1116,6 +1116,14 @@
   const FEATURE_HIGHLIGHT_STRENGTH = 0.22;
   let hoveredFeatureIdx = null;
 
+  // Any hovered section (whole group in split view, OR a specific feature
+  // once focused — both feed into the shared `amt` below) lifts its actual
+  // brick color toward white, not just the blue emissive glow. The glow
+  // alone read as a faint blue tint rather than "brighter"; this lerp adds
+  // real lightness on top of it, so the hovered section visibly pops.
+  const HOVER_BRIGHTEN_COLOR = new THREE.Color(0xffffff);
+  const HOVER_BRIGHTEN_STRENGTH = 0.45;
+
   /* ---- level 0: depth reveal on hover (assembled state only) ---- */
   const LAYER_DEPTH_REST = 0;
   const LAYER_DEPTH_HOVER = 1;
@@ -1404,10 +1412,16 @@
 
       const emphasisScale = 1 + amt*0.08;
       b.group.scale.set(emphasisScale, emphasisScale, emphasisScale * depthScale);
-      mat.emissiveIntensity = amt*0.25;
-      // Level 2 only (subAmt, not the combined group-wide amt): lighten the
-      // hovered feature's actual base color, distinct from the whole-group glow.
-      mat.color.copy(b.baseColor).lerp(FEATURE_HIGHLIGHT, b.subAmt * FEATURE_HIGHLIGHT_STRENGTH);
+      // Was 0.25 — barely visible as a faint tint. Bumped substantially so
+      // the emissive glow itself reads as a real brightness boost.
+      mat.emissiveIntensity = amt*0.9;
+      // Two lerps from the same base color: `amt` (whole-group hover OR
+      // feature hover, whichever is active) lifts toward white for a true
+      // brightness increase; subAmt layers the blue feature-highlight tint
+      // on top of that when a specific focused feature is hovered.
+      mat.color.copy(b.baseColor)
+        .lerp(HOVER_BRIGHTEN_COLOR, amt * HOVER_BRIGHTEN_STRENGTH)
+        .lerp(FEATURE_HIGHLIGHT, b.subAmt * FEATURE_HIGHLIGHT_STRENGTH);
     });
 
     // render: single pass normally, dual-pass (sharp + blurred) when focused.
