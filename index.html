@@ -38,17 +38,28 @@
   }
   #pageTitle{
     margin:0 0 10px; font-size:40px; font-weight:700; color:#0f1b3d; letter-spacing:-0.01em;
+    /* Forced single line above 1080px (see the @media just below) — only
+       one breakable space exists in the markup itself (right after
+       "Reasoning,"), so once white-space:normal kicks in below 1080px, that
+       one spot is the only place it CAN wrap to. */
+    white-space:nowrap;
   }
   #pageSubtitle{
-    margin:0 auto; font-size:18px; font-weight:500; color:#5b6474; letter-spacing:-0.005em;
-    max-width:900px; line-height:1.4; white-space:nowrap;
+    margin:0 auto; max-width:900px; line-height:1.4; white-space:nowrap;
   }
-  /* The part after the dash gets real visual weight of its own — bigger,
-     bolder, and a dark navy instead of the muted gray the rest of the line
-     uses — so it reads as the headline's second, stronger beat rather than
-     a continuation clause. */
-  #pageSubtitleStrong{
-    font-size:20px; font-weight:700; color:#1c2942;
+  /* Was previously styled bigger/bolder/darker to read as a distinct
+     second beat — reverted per feedback: the whole subtitle (both the
+     "Comprehensive HF Management" half and the part after the dash) should
+     share one uniform font/weight/color, so it just inherits #pageSubtitle
+     below instead of overriding anything. */
+  #pageSubtitle, #pageSubtitleStrong{
+    font-size:18px; font-weight:500; color:#5b6474; letter-spacing:-0.005em;
+  }
+  /* Exact 1080px threshold (not a "wrap whenever it stops fitting" fluid
+     rule) — the title stays on one line down to 1080px width, then wraps
+     right at the "Clinical Reasoning," break point below that. */
+  @media (max-width:1080px){
+    #pageTitle{ white-space:normal; }
   }
   /* This page previously had zero responsive handling — every other page
      in the site has at least one breakpoint. Below ~960px the subtitle's
@@ -57,13 +68,12 @@
      instead of staying pinned to one line. */
   @media (max-width:960px){
     #pageTitle{ font-size:28px; }
-    #pageSubtitle{ font-size:15px; white-space:normal; max-width:90vw; }
-    #pageSubtitleStrong{ font-size:16px; }
+    #pageSubtitle, #pageSubtitleStrong{ font-size:15px; }
+    #pageSubtitle{ white-space:normal; max-width:90vw; }
   }
   @media (max-width:520px){
     #pageTitle{ font-size:22px; }
-    #pageSubtitle{ font-size:13px; }
-    #pageSubtitleStrong{ font-size:14px; }
+    #pageSubtitle, #pageSubtitleStrong{ font-size:13px; }
     #titleBlock{ padding-top:14px; top:6px; }
   }
   /* Back to being positioned inside #stage (previously moved out into its
