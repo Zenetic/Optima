@@ -456,13 +456,17 @@
     // spread. `t` is normalized to -1..1 regardless of a group's module
     // count (PERSEVERE has 4 modules, PATHFINDER/SENTINEL have 2 each) so
     // every group spans the same range consistently.
-    const LIGHTNESS_CENTER = 0.30;
-    const LIGHTNESS_SPREAD = 0.14;
+    // Was 0.30/0.14 center/spread with a 0.36-0.5 saturation clamp — dialed
+    // both down a step: lower center/ceiling for a less bright overall
+    // register, and a lower saturation clamp so every block reads a bit
+    // more muted/neutral rather than a vivid blue.
+    const LIGHTNESS_CENTER = 0.26;
+    const LIGHTNESS_SPREAD = 0.13;
     const palette = [];
     for(let i=0;i<count;i++){
       const t = count > 1 ? (i - (count-1)/2) / ((count-1)/2) : 0; // normalized to -1..1
-      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.16, 0.44);
-      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.06, 0.36, 0.5);
+      const lightness = THREE.MathUtils.clamp(LIGHTNESS_CENTER + t*LIGHTNESS_SPREAD, 0.14, 0.38);
+      const saturation = THREE.MathUtils.clamp(hsl.s - Math.abs(t)*0.06, 0.28, 0.42);
       const c = new THREE.Color();
       c.setHSL(hsl.h, saturation, lightness);
       palette.push(c.getHex());
@@ -1122,7 +1126,7 @@
   // alone read as a faint blue tint rather than "brighter"; this lerp adds
   // real lightness on top of it, so the hovered section visibly pops.
   const HOVER_BRIGHTEN_COLOR = new THREE.Color(0xffffff);
-  const HOVER_BRIGHTEN_STRENGTH = 0.45;
+  const HOVER_BRIGHTEN_STRENGTH = 0.3;
 
   /* ---- level 0: depth reveal on hover (assembled state only) ---- */
   const LAYER_DEPTH_REST = 0;
@@ -1412,9 +1416,9 @@
 
       const emphasisScale = 1 + amt*0.08;
       b.group.scale.set(emphasisScale, emphasisScale, emphasisScale * depthScale);
-      // Was 0.25 — barely visible as a faint tint. Bumped substantially so
-      // the emissive glow itself reads as a real brightness boost.
-      mat.emissiveIntensity = amt*0.9;
+      // Was 0.25 originally (barely visible), bumped to 0.9, then pulled
+      // back a step after feedback that the hover read as too bright overall.
+      mat.emissiveIntensity = amt*0.6;
       // Two lerps from the same base color: `amt` (whole-group hover OR
       // feature hover, whichever is active) lifts toward white for a true
       // brightness increase; subAmt layers the blue feature-highlight tint
