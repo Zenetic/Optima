@@ -47,13 +47,12 @@
   #pageSubtitle{
     margin:0 auto; max-width:900px; line-height:1.4; white-space:nowrap;
   }
-  /* Was previously styled bigger/bolder/darker to read as a distinct
-     second beat — reverted per feedback: the whole subtitle (both the
-     "Comprehensive HF Management" half and the part after the dash) should
-     share one uniform font/weight/color, so it just inherits #pageSubtitle
-     below instead of overriding anything. */
+  /* Uniform across both halves (see note above — no more split styling
+     between "Comprehensive HF Management" and the part after the dash).
+     Bumped up a step from 18px/500/#5b6474: bigger and a stronger, darker
+     color for more presence under the headline. */
   #pageSubtitle, #pageSubtitleStrong{
-    font-size:18px; font-weight:500; color:#5b6474; letter-spacing:-0.005em;
+    font-size:20px; font-weight:600; color:#3d4452; letter-spacing:-0.005em;
   }
   /* Exact 1080px threshold (not a "wrap whenever it stops fitting" fluid
      rule) — the title stays on one line down to 1080px width, then wraps
@@ -68,12 +67,12 @@
      instead of staying pinned to one line. */
   @media (max-width:960px){
     #pageTitle{ font-size:28px; }
-    #pageSubtitle, #pageSubtitleStrong{ font-size:15px; }
+    #pageSubtitle, #pageSubtitleStrong{ font-size:16px; }
     #pageSubtitle{ white-space:normal; max-width:90vw; }
   }
   @media (max-width:520px){
     #pageTitle{ font-size:22px; }
-    #pageSubtitle, #pageSubtitleStrong{ font-size:13px; }
+    #pageSubtitle, #pageSubtitleStrong{ font-size:14px; }
     #titleBlock{ padding-top:14px; top:6px; }
   }
   /* Back to being positioned inside #stage (previously moved out into its
@@ -599,7 +598,18 @@
   // place content right up against the stage's own bottom EDGE, which sits
   // flush against the footer, reading as "cropped by the footer" even
   // though no element actually overlaps. This buffer keeps a gap there too.
-  const STAGE_BOTTOM_BUFFER_PX = 40;
+  // Was 40 — brought in a bit so the assembled/split heart sits closer to
+  // the footer, per feedback that it read as floating too high above it.
+  const STAGE_BOTTOM_BUFFER_PX = 22;
+
+  // The FOCUSED view is different: selecting a feature shows the floating
+  // #featurePopup card docked to the stage's own bottom edge (bottom:26px
+  // + its own rendered height, which varies with each module's tag/back-
+  // text length but comfortably runs 180-220px tall). Bringing the general
+  // bottom buffer in would let a focused/selected brick end up hidden
+  // behind that card, so the focus framing keeps its own, much larger
+  // reserved margin instead of sharing the tighter one above.
+  const FOCUS_BOTTOM_BUFFER_PX = 220;
 
   // How many world-space Y units to shift a box's framing target so its
   // TRUE vertical extent sits CENTERED between the title block (above) and
@@ -634,10 +644,10 @@
   // can poke outside the frame once the camera zooms in around them —
   // passing the true full-spread box (DEFAULT_BOX_RAW) as clearanceBox
   // fixes that.
-  function computeTopClearBias(sizeBox, aspect, padding, clearanceBox){
+  function computeTopClearBias(sizeBox, aspect, padding, clearanceBox, bottomBufferPx){
     clearanceBox = clearanceBox || sizeBox;
     const topLimit = reservedTopPx();
-    const bottomLimit = stage.clientHeight - STAGE_BOTTOM_BUFFER_PX;
+    const bottomLimit = stage.clientHeight - (bottomBufferPx == null ? STAGE_BOTTOM_BUFFER_PX : bottomBufferPx);
     const desiredCenterPx = (topLimit + bottomLimit) / 2;
 
     // All 4 top AND bottom corners, not just the box's center — this is an
@@ -1072,7 +1082,12 @@
     // OTHER two groups stay at their full, un-shrunk split positions
     // (rendered blurred, not clipped), so they're what can actually poke
     // into the title once the camera zooms in, not the smaller focus box.
-    const focusBias = computeTopClearBias(focusBoxRaw, aspect, currentPadding, DEFAULT_BOX_RAW);
+    // Uses FOCUS_BOTTOM_BUFFER_PX (much larger than the default bottom
+    // buffer) — this is the view where selecting a feature can show the
+    // floating card docked to the stage's bottom edge, so it keeps its own
+    // wider safety margin instead of the tighter one the assembled/split
+    // framings now use.
+    const focusBias = computeTopClearBias(focusBoxRaw, aspect, currentPadding, DEFAULT_BOX_RAW, FOCUS_BOTTOM_BUFFER_PX);
     setCameraTransform(savedTarget);
     frustumSize = savedFrustum; updateFrustum();
     const focusBox = biasedBox(focusBoxRaw, focusBias);
